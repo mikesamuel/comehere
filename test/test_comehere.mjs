@@ -399,6 +399,46 @@ describe('comehere', () => {
             `,
     }));
 
+    it('comehere_within_switch_case', () => transformTest({
+      code: strip12`
+            switch (x) {
+              case f():
+                a();
+                break;
+              case g():
+                let y = b();
+                COMEHERE: with (_) {
+                  console.log('Hello', y);
+                }
+                break;
+              case h():
+                c();
+                break;
+            }
+            `,
+      want: strip12`
+            let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            const caseToken_0 = {},
+              caseExpr_0 = x;
+            switch (seeking_0 === 1 ? caseToken_0 : caseExpr_0) {
+              case f():
+                a();
+                break;
+              case g():
+              case caseToken_0:
+                let y = b();
+                if (seeking_0 === 1) {
+                  seeking_0 = 0;
+                  console.log('Hello', y);
+                }
+                break;
+              case h():
+                c();
+                break;
+            }
+            `,
+    }));
+
     it('comehere_within_method_in_named_class', () => transformTest({
         code: strip12`
             class C {

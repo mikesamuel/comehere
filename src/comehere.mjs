@@ -267,8 +267,8 @@ function driveControlToComeHereBlock(
       //
       // When the goal is within statements following and closest to `case g():`
       //
-      // -> let caseToken = {};
-      //    let caseExpr = e;
+      // -> const caseToken = {},
+      //      caseExpr = e;
       //    switch (seekingVar === seekingValue ? caseToken : caseExpr) {
       //    case f(): ...;
       //    case g():
@@ -279,7 +279,41 @@ function driveControlToComeHereBlock(
       //
       // When the goal is within statements following and closest to `default:`
       // we can similarly add `case caseToken:` alongside the `default:`.
-      throw "TODO";
+      if (goal.isSwitchCase()) {
+        let discriminant = path.get('discriminant');
+        let discriminantNode = discriminant.node;
+        let caseTokenName = nameMaker.unusedName('caseToken');
+        let caseExprName = nameMaker.unusedName('caseExpr');
+        discriminant.replaceWith(
+          types.conditionalExpression(
+            seekingCheck(),
+            types.identifier(caseTokenName),
+            types.identifier(caseExprName),
+          )
+        );
+        path.insertBefore(
+          types.variableDeclaration(
+            'const',
+            [
+              types.variableDeclarator(
+                types.identifier(caseTokenName),
+                types.objectExpression([]),
+              ),
+              types.variableDeclarator(
+                types.identifier(caseExprName),
+                discriminantNode,
+              )
+            ],
+          )
+        );
+        let goalConsequent = goal.node.consequent;
+        goal.node.consequent = [];
+        let newCase = types.switchCase(
+          types.identifier(caseTokenName),
+          goalConsequent
+        );
+        goal.insertAfter(newCase);
+      }
     } else if (path.isLoop()) {
       // When the goal is within body:
       //
