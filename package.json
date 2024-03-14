@@ -1,0 +1,32 @@
+{
+  "name": "comehere",
+  "version": "1.0.0",
+  "description": "JavaScript to JavaScript transform that adds support for COMEHERE blocks.",
+  "main": "js/comehere.js",
+  "type": "module",
+  "scripts": {
+    "test": "mocha --recursive test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mikesamuel/comehere.git"
+  },
+  "author": "Mike Samuel",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/mikesamuel/comehere/issues"
+  },
+  "homepage": "https://github.com/mikesamuel/comehere#readme",
+  "dependencies": {
+    "@babel/core": "^7.24.0",
+    "@babel/generator": "^7.23.6",
+    "@babel/parser": "^7.24.0",
+    "@babel/traverse": "^7.24.0",
+    "@babel/types": "^7.24.0"
+  },
+  "devDependencies": {
+    "chai": "^5.1.0",
+    "esm": "^3.2.25",
+    "mocha": "^10.3.0"
+  }
+}
