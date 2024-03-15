@@ -182,10 +182,42 @@ describe('comehere', () => {
       want,
       wantErrors = [],
     }) => new ErrorConsole().dumpIfFails((errorConsole) => {
-      let transformed = comehere.transform(code, errorConsole);
+      let transformed = comehere.transform(code, errorConsole).code;
       expect(wantErrors).deep.equal(errorConsole.messages.error);
       expect(want).equal(transformed);
     });
+
+    it('comeheres_with_empty_bodies', () => transformTest({
+      code: strip12`
+            function f(x) {
+              COMEHERE: with ("foo", x = 1) {
+              }
+            }
+            COMEHERE: with ("bar") {
+            }
+            `,
+      want: strip12`
+            let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            function f(x) {
+              if (seeking_0 === 1) {
+                seeking_0 = 0;
+              }
+            }
+            if (seeking_0 === 1) {
+              try {
+                const callee_0 = f,
+                  x = 1;
+                callee_0(x);
+              } finally {
+                seeking_0 = 0;
+              }
+            }
+            if (seeking_0 === 2) {
+              seeking_0 = 0;
+            }
+            `,
+      blocks: ["foo", "bar"],
+    }));
 
     it('comehere_within_named_fn', () => transformTest({
       code: strip12`

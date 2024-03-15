@@ -14,14 +14,10 @@
  */
 
 import {parse} from '@babel/parser';
-import generateDefault from '@babel/generator';
-import traverseDefault from '@babel/traverse';
+import { traverse, generate } from './babel-bits-and-bobs.mjs';
 import * as types from '@babel/types';
 import { NameMaker, namesUsedIn } from './name-maker.mjs';
 import { AssignedNames, declareAssignedNames } from './assigned-names.mjs';
-
-let traverse = traverseDefault.default;
-let generate = generateDefault.default;
 
 /**
  * Ensure that control-flow statements use blocks around statements
@@ -90,7 +86,8 @@ export function blockify(ast) {
 function extractComeHereBlocks(
   seekingVarName,
   ast,
-  nameMaker
+  nameMaker,
+  console,
 ) {
   let extracted = [];
 
@@ -103,7 +100,7 @@ function extractComeHereBlocks(
       if (parentPath.isLabeledStatement() && parentPath.node.label.name === 'COMEHERE') {
         // Zero as a seekingValue means not seeking any COMEHERE.
         let seekingValue = extracted.length + 1;
-        let initializers = path.get('object').node;
+        let initializersNode = path.get('object').node;
         let body = path.get('body'); // A block because of blockify above.
         // Turn the `with` into an `if`.
         parentPath.replaceWith(
@@ -118,16 +115,69 @@ function extractComeHereBlocks(
         );
         // Turn off seeking now that we found it, so that reentrant uses
         // function correctly.
-        body.get('body')[0].insertBefore(
-          types.expressionStatement(
-            types.assignmentExpression(
-              '=',
-              types.identifier(seekingVarName),
-              types.numericLiteral(0)
-            )
+        let startOfBody = body.get('body')[0];
+        let resetStatement = types.expressionStatement(
+          types.assignmentExpression(
+            '=',
+            types.identifier(seekingVarName),
+            types.numericLiteral(0)
           )
         );
-        extracted.push(new ComeHereBlock(seekingValue, parentPath, initializers));
+        if (startOfBody) {
+          startOfBody.insertBefore(resetStatement);
+        } else {
+          body.node.body.push(resetStatement);
+        }
+
+        // Deconstruct initializersNode to [dotted-path, right-hand-side] pairs
+        let initializers = [];
+        let description = null;
+        {
+          let it = (types.isSequenceExpression(initializersNode))
+              ? initializersNode.expressions
+              : [initializersNode];
+
+          if (types.isStringLiteral(it[0])) {
+            description = it[0].value || null;
+            it.splice(0, 1);
+          }
+
+          initializer_loop:
+          for (let initializer of it) {
+            // `COMEHERE: with (_) { ... }` has zero initializers.
+            if (types.isIdentifier(initializer) && initializer.name === '_') { continue }
+            // Warn on malformed initializers
+            if (!(types.isAssignmentExpression(initializer) || initializer.operator != '=')) {
+              let { code } = generate(initializer);
+              console.error(`COMEHERE: expected assignment but got \`${code}\`.`);
+              continue initializer_loop;
+            }
+            let { left, right } = initializer;
+            let parts = [];
+            while (true) {
+              if (types.isIdentifier(left)) {
+                parts.push(left.name);
+                break;
+              }
+              if (
+                types.isMemberExpression(left) &&
+                  !left.computed &&
+                  types.isIdentifier(left.property)
+              ) {
+                parts.push(left.property.name);
+                left = left.object;
+              } else {
+                let { code } = generate(initializer);
+                console.error(`COMEHERE: expected assignment to dotted path, but got \`${code}\`.`);
+                continue initializer_loop;
+              }
+            }
+            parts.reverse();
+            initializers.push([parts.join('.'), right]);
+          }
+        }
+
+        extracted.push(new ComeHereBlock(description, seekingValue, parentPath, initializers));
       }
     }
   };
@@ -138,9 +188,21 @@ function extractComeHereBlocks(
 }
 
 class ComeHereBlock {
+  #description;
   #seekingValue;
   #path;
   #initializers;
+
+  /**
+   * A textual description or null if unavailable.
+   *
+   * If the first item in the `with` block is a string, that's
+   * used as the description.  This may be presented in a UI
+   * to help the developer choose the block they want to run.
+   *
+   * `COMEHERE: with ("description", a = 1) { ... }`
+   */
+  get description() { return this.#description }
 
   /**
    * The value used in `seeking_0 === ...` branch conditions
@@ -159,7 +221,8 @@ class ComeHereBlock {
    */
   get initializers() { return this.#initializers }
 
-  constructor(seekingValue, path, initializers) {
+  constructor(description, seekingValue, path, initializers) {
+    this.#description = description;
     this.#seekingValue = seekingValue;
     this.#path = path;
     this.#initializers = initializers;
@@ -188,46 +251,8 @@ function driveControlToComeHereBlock(
   let seekingVarName = assignedNames.seekingVarName;
   let seekingValue = comeHereBlock.seekingValue;
   let nameMaker = assignedNames.nameMaker;
-  // Deconstruct initializers to [dotted-path, right-hand-side] pairs
-  let initializers = [];
-  {
-    let it = (types.isSequenceExpression(comeHereBlock.initializers))
-        ? comeHereBlock.initializers.expressions
-        : [comeHereBlock.initializers];
-    initializer_loop:
-    for (let initializer of it) {
-      // `COMEHERE: with (_) { ... }` has zero initializers.
-      if (types.isIdentifier(initializer) && initializer.name === '_') { continue }
-      // Warn on malformed initializers
-      if (!(types.isAssignmentExpression(initializer) || initializer.operator != '=')) {
-        let { code } = generate(initializer);
-        console.error(`COMEHERE: expected assignment but got \`${code}\`.`);
-        continue initializer_loop;
-      }
-      let { left, right } = initializer;
-      let parts = [];
-      while (true) {
-        if (types.isIdentifier(left)) {
-          parts.push(left.name);
-          break;
-        }
-        if (
-          types.isMemberExpression(left) &&
-          !left.computed &&
-            types.isIdentifier(left.property)
-        ) {
-          parts.push(left.property.name);
-          left = left.object;
-        } else {
-          let { code } = generate(initializer);
-          console.error(`COMEHERE: expected assignment to dotted path, but got \`${code}\`.`);
-          continue initializer_loop;
-        }
-      }
-      parts.reverse();
-      initializers.push([parts.join('.'), right]);
-    }
-  }
+
+  let initializers = comeHereBlock.initializers;
 
   function seekingCheck(comparisonOp = '===') {
     return types.binaryExpression(
@@ -1023,12 +1048,15 @@ export function transform(jsSource, console = globalThis.console) {
   // We need a local variable to tell us which block we're seeking.
   let seekingVarName = nameMaker.unusedName('seeking');
 
-  let comeHereBlocks = extractComeHereBlocks(seekingVarName, ast, nameMaker);
+  let comeHereBlocks = extractComeHereBlocks(seekingVarName, ast, nameMaker, console);
   let assignedNames = new AssignedNames(nameMaker, seekingVarName);
 
   driveControlToComeHereBlocks(comeHereBlocks, assignedNames, console);
 
   declareAssignedNames(ast, assignedNames);
 
-  return generate(ast).code;
+  return {
+    code: generate(ast).code,
+    blocks: comeHereBlocks.map(b => b.description),
+  };
 }

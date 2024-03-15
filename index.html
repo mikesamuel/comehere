@@ -1,13 +1,21 @@
 <!doctype html>
 
 <html>
-  <title>scanf debugging : A semantics for COMEHERE</title>
+  <title>Rebooting printf debugging</title>
   <link rel="stylesheet" href="styles/styles.css">
-  <script type="importmap" src="./importmap.json"></script>
-  <script type="module" src="comehere"></script>
-
   <body>
-    <h1><code>scanf</code> debugging<br><small>A semantics for <i>COMEHERE</i></small></h1>
+    <h1>Rebooting printf debugging<br><small>Towards scanf debugging</small></h1>
+
+    <table>
+      <tr>
+        <td valign="top" width="50%"><div id="editor"></div>
+          <button id="play-button" type="button">▶️</button> <select id="block-choice"></select>
+          <div id="console-output"></div></td>
+        <td valign="top" width="50%"><div id="translation"></div></td>
+      </tr>
+    </table>
+
+    <script type="module" src="./editor-support.mjs"></script>
 
   </body>
 </html>

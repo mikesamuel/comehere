@@ -10,10 +10,8 @@
  * to the top of the transformed JS.
  */
 
-import traverseDefault from '@babel/traverse';
+import { traverse } from './babel-bits-and-bobs.mjs';
 import * as types from '@babel/types';
-
-let traverse = traverseDefault.default;
 
 /**
  * Pools names used for supporting functions.

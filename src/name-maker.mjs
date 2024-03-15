@@ -1,4 +1,4 @@
-import traverseDefault from '@babel/traverse';
+import { traverse } from './babel-bits-and-bobs.mjs';
 import * as types from '@babel/types';
 
 export function namesUsedIn(ast) {
@@ -19,7 +19,7 @@ export function namesUsedIn(ast) {
       namesUsed.add(path.node.name);
     }
   };
-  traverseDefault.default(ast, visitor);
+  traverse(ast, visitor);
   return namesUsed;
 }
 

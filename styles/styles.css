@@ -1,0 +1,4 @@
+#console-output .group-head { font-weight: bold }
+#console-output .warn { background-color: #FCF3CF }
+#console-output .error { background-color: #F5B7B1 }
+#console-output .value { background-color: #FCCFFC }
