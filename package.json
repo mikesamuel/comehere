@@ -5,7 +5,10 @@
   "main": "js/comehere.js",
   "type": "module",
   "scripts": {
-    "test": "mocha --recursive test"
+    "test": "mocha --recursive test",
+    "buildsite": "./scripts/buildsite.sh",
+    "updatesite": "./scripts/updatesite.sh",
+    "servesite": "./scripts/servesite.sh"
   },
   "repository": {
     "type": "git",
