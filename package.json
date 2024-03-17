@@ -12,8 +12,9 @@
   "type": "module",
   "scripts": {
     "test": "mocha --recursive test",
-    "build": "parcel build index.html",
-    "serve": "npx parcel index.html"
+    "build": "parcel build --public-url '/comehere'",
+    "serve": "npx parcel index.html",
+    "publish": "npm run build && ./scripts/publish-dist.sh"
   },
   "repository": {
     "type": "git",
