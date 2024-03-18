@@ -36,17 +36,22 @@ export class NameMaker {
     this.#counters = new Map();
   }
 
-  unusedName(identifierPrefix = 't') {
+  unusedNameAndSuffixNum(identifierPrefix = 't') {
     let namesUsed = this.#namesUsed;
     let counters = this.#counters;
     let suffixCounter = counters.get(identifierPrefix) || 0;
     while (true) {
-      let candidate = `${identifierPrefix}_${suffixCounter}`;
+      let suffixNum = suffixCounter;
+      let candidate = `${identifierPrefix}_${suffixNum}`;
       suffixCounter += 1;
       if (!namesUsed.has(candidate)) {
         counters.set(identifierPrefix, suffixCounter);
-        return candidate;
+        return [candidate, suffixNum];
       }
     }
+  }
+
+  unusedName(identifierPrefix = 't') {
+    return this.unusedNameAndSuffixNum(identifierPrefix)[0];
   }
 }

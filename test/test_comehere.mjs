@@ -198,8 +198,11 @@ describe('comehere', () => {
             `,
       want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             function f(x) {
-              if (seeking_0 === 1) {
+              const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+              activeFns_0 &= ~(1n << 0n);
+              if (isActiveCall_0 && seeking_0 === 1) {
                 seeking_0 = 0;
               }
             }
@@ -207,6 +210,7 @@ describe('comehere', () => {
               try {
                 const callee_0 = f,
                   x = 1;
+                activeFns_0 |= 1n << 0n;
                 callee_0(x);
               } finally {
                 seeking_0 = 0;
@@ -231,9 +235,12 @@ describe('comehere', () => {
             `,
       want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             export function f(a, b) {
+              const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+              activeFns_0 &= ~(1n << 0n);
               let result = a * b;
-              if (seeking_0 === 1) {
+              if (isActiveCall_0 && seeking_0 === 1) {
                 seeking_0 = 0;
                 console.log('result', result, ', wanted', 42);
               }
@@ -244,6 +251,7 @@ describe('comehere', () => {
                 const callee_0 = f,
                   a = 6,
                   b = 8;
+                activeFns_0 |= 1n << 0n;
                 callee_0(a, b);
               } finally {
                 seeking_0 = 0;
@@ -490,14 +498,17 @@ describe('comehere', () => {
             `,
         want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             class C {
               constructor(x, y) {
                 this.x = x;
                 this.y = y;
               }
               method(n) {
+                const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+                activeFns_0 &= ~(1n << 0n);
                 let r = this.x + this.y * n;
-                if (seeking_0 === 1) {
+                if (isActiveCall_0 && seeking_0 === 1) {
                   seeking_0 = 0;
                   console.log(this.x, this.y, n, r);
                 }
@@ -510,6 +521,7 @@ describe('comehere', () => {
                   y = 2,
                   this_0 = new C(x, y),
                   n = 3;
+                activeFns_0 |= 1n << 0n;
                 this_0.method(n);
               } finally {
                 seeking_0 = 0;
@@ -532,11 +544,14 @@ describe('comehere', () => {
             `,
         want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             class C {
               constructor(x, y) {
+                const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+                activeFns_0 &= ~(1n << 0n);
                 this.x = x;
                 this.y = y;
-                if (seeking_0 === 1) {
+                if (isActiveCall_0 && seeking_0 === 1) {
                   seeking_0 = 0;
                   console.log(this.x, this.y);
                 }
@@ -546,6 +561,7 @@ describe('comehere', () => {
               try {
                 const x = 1,
                   y = 2;
+                activeFns_0 |= 1n << 0n;
                 new C(x, y);
               } finally {
                 seeking_0 = 0;
@@ -567,10 +583,13 @@ describe('comehere', () => {
             `,
         want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             class C {
               static foo(x, y) {
+                const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+                activeFns_0 &= ~(1n << 0n);
                 let n = x++ + y;
-                if (seeking_0 === 1) {
+                if (isActiveCall_0 && seeking_0 === 1) {
                   seeking_0 = 0;
                   console.log(x, y, n);
                 }
@@ -580,6 +599,7 @@ describe('comehere', () => {
               try {
                 const x = 1,
                   y = 2;
+                activeFns_0 |= 1n << 0n;
                 C.foo(x, y);
               } finally {
                 seeking_0 = 0;
@@ -601,10 +621,13 @@ describe('comehere', () => {
             `,
         want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             class C {
               accessor_0(x, y) {
+                const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+                activeFns_0 &= ~(1n << 0n);
                 let n = x++ + y;
-                if (seeking_0 === 1) {
+                if (isActiveCall_0 && seeking_0 === 1) {
                   seeking_0 = 0;
                   console.log(x, y, n);
                 }
@@ -618,6 +641,7 @@ describe('comehere', () => {
                 const this_0 = new C(),
                   x = 1,
                   y = 2;
+                activeFns_0 |= 1n << 0n;
                 this_0.accessor_0(x, y);
               } finally {
                 seeking_0 = 0;
@@ -640,10 +664,13 @@ describe('comehere', () => {
             `,
         want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             class C {
               get x() {
+                const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+                activeFns_0 &= ~(1n << 0n);
                 let n = 123;
-                if (seeking_0 === 1) {
+                if (isActiveCall_0 && seeking_0 === 1) {
                   seeking_0 = 0;
                   console.log(n);
                 }
@@ -653,6 +680,7 @@ describe('comehere', () => {
             if (seeking_0 === 1) {
               try {
                 const this_0 = new C();
+                activeFns_0 |= 1n << 0n;
                 this_0.x;
               } finally {
                 seeking_0 = 0;
@@ -674,10 +702,13 @@ describe('comehere', () => {
             `,
         want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             class C {
               set accessor_0(newX) {
+                const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+                activeFns_0 &= ~(1n << 0n);
                 this._x = newX;
-                if (seeking_0 === 1) {
+                if (isActiveCall_0 && seeking_0 === 1) {
                   seeking_0 = 0;
                   console.log(this._x, newX);
                 }
@@ -690,6 +721,7 @@ describe('comehere', () => {
               try {
                 const this_0 = new C(),
                   newX = -1;
+                activeFns_0 |= 1n << 0n;
                 this_0.accessor_0 = newX;
               } finally {
                 seeking_0 = 0;
@@ -711,12 +743,14 @@ describe('comehere', () => {
             `,
       want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             (class_0 => {
               if (seeking_0 === 1) {
                 try {
                   const this_0 = new class_0(),
                     x = 1,
                     y = 2;
+                  activeFns_0 |= 1n << 0n;
                   this_0.foo(x, y);
                 } finally {
                   seeking_0 = 0;
@@ -725,8 +759,10 @@ describe('comehere', () => {
               return class_0;
             })(class {
               foo(x, y) {
+                const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+                activeFns_0 &= ~(1n << 0n);
                 let n = x++ + y;
-                if (seeking_0 === 1) {
+                if (isActiveCall_0 && seeking_0 === 1) {
                   seeking_0 = 0;
                   console.log(x, y, n);
                 }
@@ -747,10 +783,12 @@ describe('comehere', () => {
             `,
       want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             (this_0 => {
               if (seeking_0 === 1) {
                 try {
                   const x = 1;
+                  activeFns_0 |= 1n << 0n;
                   this_0.method(x);
                 } finally {
                   seeking_0 = 0;
@@ -759,7 +797,9 @@ describe('comehere', () => {
               return this_0;
             })({
               method(x) {
-                if (seeking_0 === 1) {
+                const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+                activeFns_0 &= ~(1n << 0n);
+                if (isActiveCall_0 && seeking_0 === 1) {
                   seeking_0 = 0;
                   console.log(this, x);
                 }
@@ -782,9 +822,11 @@ describe('comehere', () => {
             `,
       want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             (this_0 => {
               if (seeking_0 === 1) {
                 try {
+                  activeFns_0 |= 1n << 0n;
                   this_0.accessor_0;
                 } finally {
                   seeking_0 = 0;
@@ -794,7 +836,9 @@ describe('comehere', () => {
             })({
               _x: 123,
               get accessor_0() {
-                if (seeking_0 === 1) {
+                const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+                activeFns_0 &= ~(1n << 0n);
+                if (isActiveCall_0 && seeking_0 === 1) {
                   seeking_0 = 0;
                   console.log(this._x);
                 }
@@ -819,6 +863,7 @@ describe('comehere', () => {
             `,
         want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             function or_0(x, y, seeking) {
               if (seeking) {
                 const yr = y();
@@ -832,6 +877,7 @@ describe('comehere', () => {
                 try {
                   const callee_0 = f_0,
                     x = 1;
+                  activeFns_0 |= 1n << 0n;
                   callee_0(x);
                 } finally {
                   seeking_0 = 0;
@@ -839,7 +885,9 @@ describe('comehere', () => {
               }
               return f_0;
             })(x => {
-              if (seeking_0 === 1) {
+              const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+              activeFns_0 &= ~(1n << 0n);
+              if (isActiveCall_0 && seeking_0 === 1) {
                 seeking_0 = 0;
                 console.log(x);
               }
@@ -859,6 +907,7 @@ describe('comehere', () => {
             `,
         want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             function and_0(x, y, seeking) {
               if (seeking) {
                 const yr = y();
@@ -872,6 +921,7 @@ describe('comehere', () => {
                 try {
                   const callee_0 = f_0,
                     x = 1;
+                  activeFns_0 |= 1n << 0n;
                   callee_0(x);
                 } finally {
                   seeking_0 = 0;
@@ -879,7 +929,9 @@ describe('comehere', () => {
               }
               return f_0;
             })(x => {
-              if (seeking_0 === 1) {
+              const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+              activeFns_0 &= ~(1n << 0n);
+              if (isActiveCall_0 && seeking_0 === 1) {
                 seeking_0 = 0;
                 console.log(x);
               }
@@ -906,11 +958,13 @@ describe('comehere', () => {
             `,
         want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
             (a() || seeking_0 === 1) && seeking_0 !== 2 ? (f_0 => {
               if (seeking_0 === 1) {
                 try {
                   const callee_0 = f_0,
                     x = 1;
+                  activeFns_0 |= 1n << 0n;
                   callee_0(x);
                 } finally {
                   seeking_0 = 0;
@@ -918,7 +972,9 @@ describe('comehere', () => {
               }
               return f_0;
             })(x => {
-              if (seeking_0 === 1) {
+              const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+              activeFns_0 &= ~(1n << 0n);
+              if (isActiveCall_0 && seeking_0 === 1) {
                 seeking_0 = 0;
                 console.log(x);
               }
@@ -928,6 +984,7 @@ describe('comehere', () => {
                 try {
                   const callee_1 = f_1,
                     x = 2;
+                  activeFns_0 |= 1n << 1n;
                   callee_1(x);
                 } finally {
                   seeking_0 = 0;
@@ -935,7 +992,9 @@ describe('comehere', () => {
               }
               return f_1;
             })(x => {
-              if (seeking_0 === 2) {
+              const isActiveCall_1 = activeFns_0 >> 1n & 1n;
+              activeFns_0 &= ~(1n << 1n);
+              if (isActiveCall_1 && seeking_0 === 2) {
                 seeking_0 = 0;
                 console.log(x);
               }

@@ -70,6 +70,158 @@ export function blockify(ast) {
   traverse(ast, visitor);
 }
 
+function enclosingFn(contextPath) {
+  let path = contextPath;
+  while (path) {
+    if (path.isFunction()) {
+      return path;
+    }
+    path = path.parentPath;
+  }
+  return null;
+}
+
+/**
+ * Install a prefix like the below into the enclosing function if there
+ * is one that needs one:
+ *
+ *     let isActiveCall_3 = (activeFn_0 >> 3n) & 1n;
+ *     activeFn_3 &= ~(1n << 3n);
+ *
+ * Returns a record like:
+ *
+ * {
+ *   fnPath: {Babel path to enclosing function},
+ *   isActiveCall: 'isActiveCall_3',
+ *   bitIndex: 3n,
+ * }
+ *
+ * If there is no containing function body,
+ * returns a similar record with all null values.
+ */
+function ensureActiveFnBodyPrefixPresent(contextPath, assignedNames) {
+  let existing = enclosingActiveFnContext(contextPath, assignedNames);
+  if (existing.isActiveCall) { return existing }
+  let {fnPath} = existing;
+  if (!fnPath) {
+    return { fnPath, isActiveCall: null, bitIndex: null };
+  }
+  let activeFn = assignedNames.requireActiveFns();
+  let [isActiveCall, suffixNum] = assignedNames.nameMaker.unusedNameAndSuffixNum('isActiveCall');
+  let bitIndex = BigInt(suffixNum);
+  fnPath.node.body.body.unshift(
+    types.variableDeclaration(
+      'const',
+      [
+        types.variableDeclarator(
+          types.identifier(isActiveCall),
+          types.binaryExpression(
+            '&',
+            types.binaryExpression(
+              '>>',
+              types.identifier(activeFn),
+              types.bigIntLiteral('' + bitIndex),
+            ),
+            types.bigIntLiteral('1'),
+          ),
+        ),
+      ]
+    ),
+    types.expressionStatement(
+      types.assignmentExpression(
+        '&=',
+        types.identifier(activeFn),
+        types.unaryExpression(
+          '~',
+          types.binaryExpression(
+            '<<',
+            types.bigIntLiteral('1'),
+            types.bigIntLiteral('' + bitIndex),
+          ),
+        ),
+      ),
+    ),
+  );
+  return {
+    fnPath,
+    isActiveCall,
+    bitIndex,
+  };
+}
+
+/**
+ * Unpacks the prefix created by ensureActiveFnBodyPrefixPresent.
+ */
+function enclosingActiveFnContext(contextPath, assignedNames) {
+  let isActiveCall = null, bitIndex = null;
+  let fnPath = enclosingFn(contextPath);
+  let { activeFns } = assignedNames;
+  if (fnPath && activeFns) {
+    let body0 = fnPath.node.body.body[0];
+    if (
+      types.isVariableDeclaration(body0) &&
+        body0.kind === 'const' &&
+        body0.declarations.length === 1
+    ) {
+      let { id, init } = body0.declarations[0];
+      if (types.isIdentifier(id) && init) {
+        if (types.isBinaryExpression(init) && init.operator === '&') {
+          let { left, right } = init;
+          if (types.isBigIntLiteral(right) && types.isBinaryExpression(left)) {
+            if (left.operator === '>>') {
+              let { left: leftLeft, right: leftRight } = left;
+              if (types.isIdentifier(leftLeft) && leftLeft.name === activeFns &&
+                  types.isBigIntLiteral(leftRight)) {
+                isActiveCall = id.name;
+                bitIndex = BigInt(leftRight.value);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return {
+    fnPath,
+    isActiveCall,
+    bitIndex,
+  };
+}
+
+/**
+ * isActiveCall_0 && seeking_0 === 123
+ */
+function seekingCheck(
+  assignedNames,
+  seekingValue,
+  contextPath,
+  inverted = false
+) {
+  let { seekingVarName } = assignedNames;
+  let { isActiveCall } = enclosingActiveFnContext(contextPath, assignedNames);
+
+  let [comparisonOp, combiningOp] = inverted
+      ? ['!==', '||']
+      : ['===', '&&']
+  let check = types.binaryExpression(
+    comparisonOp,
+    types.identifier(seekingVarName),
+    types.numericLiteral(seekingValue),
+  );
+  if (isActiveCall) {
+    let isActiveCallCheck = types.identifier(isActiveCall);
+    if (inverted) {
+      isActiveCallCheck = types.unaryExpression('!', isActiveCallCheck);
+    }
+    check = types.logicalExpression(
+      combiningOp,
+      isActiveCallCheck,
+      check
+    );
+  }
+  return check;
+}
+
 /**
  * Converts `COMEHERE: with (initializers) { ... }` to
  * `if (seeking_0 === 1) { seeking_0 = 0; ... }` and squirrels away
@@ -84,11 +236,12 @@ export function blockify(ast) {
  * serves as an identifier.
  */
 function extractComeHereBlocks(
-  seekingVarName,
   ast,
-  nameMaker,
+  assignedNames,
   console,
 ) {
+  let { seekingVarName } = assignedNames;
+
   let extracted = [];
 
   let visitor = {
@@ -102,14 +255,11 @@ function extractComeHereBlocks(
         let seekingValue = extracted.length + 1;
         let initializersNode = path.get('object').node;
         let body = path.get('body'); // A block because of blockify above.
+        ensureActiveFnBodyPrefixPresent(parentPath, assignedNames);
         // Turn the `with` into an `if`.
         parentPath.replaceWith(
           types.ifStatement(
-            types.binaryExpression(
-              '===',
-              types.identifier(seekingVarName),
-              types.numericLiteral(seekingValue)
-            ),
+            seekingCheck(assignedNames, seekingValue, path),
             body.node,
           )
         );
@@ -243,6 +393,10 @@ function driveControlToComeHereBlocks(
   }
 }
 
+/**
+ * Adjust branch conditions, control flow instructions, and function bodies so
+ * that control is driven towards the COMEHERE block identified by `seeking_0`.
+ */
 function driveControlToComeHereBlock(
   comeHereBlock,
   assignedNames,
@@ -254,13 +408,7 @@ function driveControlToComeHereBlock(
 
   let initializers = comeHereBlock.initializers;
 
-  function seekingCheck(comparisonOp = '===') {
-    return types.binaryExpression(
-      comparisonOp,
-      types.identifier(seekingVarName),
-      types.numericLiteral(seekingValue),
-    );
-  }
+  let seekingCheckForBlock = seekingCheck.bind(null, assignedNames, seekingValue);
 
   // Walk rootward from the path adding instructions.
   function adjust(goal) {
@@ -276,11 +424,11 @@ function driveControlToComeHereBlock(
       let elseClause = path.get('alternate');
       if (thenClause.node === goal.node) {
         test.replaceWith(
-          types.logicalExpression('||', test.node, seekingCheck())
+          types.logicalExpression('||', test.node, seekingCheckForBlock(path))
         )
       } else if (elseClause.node === goal.node) {
         test.replaceWith(
-          types.logicalExpression('&&', test.node, seekingCheck('!=='))
+          types.logicalExpression('&&', test.node, seekingCheckForBlock(path, true))
         )
       }
     } else if (path.isSwitchStatement()) {
@@ -311,7 +459,7 @@ function driveControlToComeHereBlock(
         let caseExprName = nameMaker.unusedName('caseExpr');
         discriminant.replaceWith(
           types.conditionalExpression(
-            seekingCheck(),
+            seekingCheckForBlock(path),
             types.identifier(caseTokenName),
             types.identifier(caseExprName),
           )
@@ -357,7 +505,7 @@ function driveControlToComeHereBlock(
         let test = path.get('test');
         if (path.isForStatement() || path.isWhileStatement()) {
           test.replaceWith(
-            types.logicalExpression('||', test.node, seekingCheck())
+            types.logicalExpression('||', test.node, seekingCheckForBlock(path))
           );
         } else if (path.isForOfStatement() || path.isForInStatement()) {
           let isForIn = path.isForInStatement();
@@ -370,7 +518,7 @@ function driveControlToComeHereBlock(
           right.replaceWith(
             types.callExpression(
               types.identifier(wrapperName),
-              [ right.node, seekingCheck() ]
+              [ right.node, seekingCheckForBlock(path) ]
             )
           );
 
@@ -398,7 +546,7 @@ function driveControlToComeHereBlock(
       let catchClause = path.get('handler');
       if (goal.node === catchClause.node) {
         let conditionalThrow = types.ifStatement(
-          seekingCheck(),
+          seekingCheckForBlock(path),
           types.blockStatement([
             types.throwStatement(types.nullLiteral()),
           ])
@@ -484,6 +632,8 @@ function driveControlToComeHereBlock(
       }
       let {node} = path;
       if (node.body === goal.node) {
+        let { isActiveCall, bitIndex } = ensureActiveFnBodyPrefixPresent(path, assignedNames);
+
         // To drive control into a function, we need to synthesize a call.
         // To that end, we build argument lists by pulling expressions out
         // of the COMEHERE block's initializer list.
@@ -606,7 +756,7 @@ function driveControlToComeHereBlock(
         // This allows one initializer expression to depend on another
         // as long as they bind at the same level.
         //
-        //     if (seekingVar === seekingValue) {
+        //     if (seekingVar === seekingValue && isActive) {
         //       try {
         //         const callee = f,
         //               thisValue = thisInitializer,
@@ -843,11 +993,22 @@ function driveControlToComeHereBlock(
           );
         }
 
+        let setActiveFnBitExpression = types.assignmentExpression(
+          '|=',
+          types.identifier(assignedNames.requireActiveFns()),
+          types.binaryExpression(
+            '<<',
+            types.bigIntLiteral('1'),
+            types.bigIntLiteral('' + bitIndex),
+          ),
+        );
+
         // Generate a block of statements that call the function/method.
         // Later we look at the kind of function to figure out where to
         // emplace the block so that we can call it.
         let callBlock = types.ifStatement(
-          seekingCheck(),
+          // The check is outside the context of the function.
+          seekingCheckForBlock(path.parentPath),
           types.blockStatement([
             types.tryStatement(
               types.blockStatement(
@@ -858,6 +1019,7 @@ function driveControlToComeHereBlock(
                       declarators,
                     )
                     : null,
+                  types.expressionStatement(setActiveFnBitExpression),
                   types.expressionStatement(invocationExpression),
                 ].filter((x) => x)
               ),
@@ -958,7 +1120,7 @@ function driveControlToComeHereBlock(
           types.logicalExpression(
             '||',
             test.node,
-            seekingCheck(),
+            seekingCheckForBlock(path),
           )
         );
       } else if (goal.node === alternate.node) {
@@ -966,7 +1128,7 @@ function driveControlToComeHereBlock(
           types.logicalExpression(
             '&&',
             test.node,
-            seekingCheck('!=='),
+            seekingCheckForBlock(path, true),
           )
         );
       }
@@ -998,7 +1160,7 @@ function driveControlToComeHereBlock(
                   [],
                   right.node
                 ),
-                seekingCheck(),
+                seekingCheckForBlock(path),
               ]
             )
           )
@@ -1045,11 +1207,9 @@ export function transform(jsSource, console = globalThis.console) {
   // Make sure we have blocks to insert instructions into.
   blockify(ast);
 
-  // We need a local variable to tell us which block we're seeking.
-  let seekingVarName = nameMaker.unusedName('seeking');
+  let assignedNames = new AssignedNames(nameMaker);
 
-  let comeHereBlocks = extractComeHereBlocks(seekingVarName, ast, nameMaker, console);
-  let assignedNames = new AssignedNames(nameMaker, seekingVarName);
+  let comeHereBlocks = extractComeHereBlocks(ast, assignedNames, console);
 
   driveControlToComeHereBlocks(comeHereBlocks, assignedNames, console);
 

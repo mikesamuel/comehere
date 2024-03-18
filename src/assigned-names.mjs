@@ -18,7 +18,57 @@ import * as types from '@babel/types';
  */
 export class AssignedNames {
   nameMaker;
+  /** Identifies the COMEHERE block that we are driving control into. */
   seekingVarName;
+  /**
+   * A bit-set of which lexical function bodies we are in the process of calling.
+   * This is used to allow a function to recurse before its COMEHERE block without
+   * hijacking the behaviour of the wrong invocation.
+   *
+   * For example, in the below, we'll insert a call like `fibonacci(10)`,
+   * but the first time control reaches the COMEHERE block, `n = 2` because of
+   * the recursive calls.
+   *
+   *     function fibonacci(n) {
+   *       if (n <= 1) { return 1; }
+   *       let fibLessTwo = fibonacci(n - 2);
+   *       let fibLessOne = fibonacci(n - 1);
+   *       COMEHERE: with (n = 10) {
+   *         ...
+   *       }
+   *       return fibLessTwo + fibLessOne;
+   *     }
+   *
+   * If we naively converted that to the below, then the control-driving
+   * instructions would affect every call before the one we want which, in this
+   * case, would drive control away from the base case, `return 1` leading to
+   * a stack overflow before the COMEHERE executed.
+   *
+   *     function fibonacci(n) {
+   *       // NEEDS TO STORE ACTIVE BIT LOCALLY AND UNSET ACTIVE BIT BEFORE ANY REENTRANT CALL
+   *       if (n <= 1
+   *           && seeking_0 !== 1 // NEEDS ACTIVE CHECK
+   *       ) { return 1; }
+   *       let fibLessTwo = fibonacci(n - 2);
+   *       let fibLessOne = fibonacci(n - 1);
+   *       if (seeling_0 === 1    // NEEDS ACTIVE CHECK
+   *       ) { ... }
+   *       return fibLessTwo + fibLessOne;
+   *     }
+   *     if (seeking_0 === 1) {
+   *       // SET ACTIVE BIT
+   *       fibonacci(10);
+   *     }
+   *
+   * We optimistically assume that generators do not proxy functions in ways that
+   * re-enter them with different arguments before the first proxied call.
+   * This could be fixed by splitting each function in two: one that is presented
+   * to the outside world with the original signature and which delegates to the
+   * second which takes an extra argument to identify it as active.
+   * Inserted calls would have direct access to the second and call it in active
+   * mode.
+   */
+  activeFns;
   /**
    * A generator function that iterates its first argument,
    * and if that iterates nothing and the second argument is true, iterates `null`.
@@ -40,18 +90,21 @@ export class AssignedNames {
    */
   and;
 
-  constructor(nameMaker, seekingVarName) {
+  constructor(nameMaker) {
     this.nameMaker = nameMaker;
-    this.seekingVarName = seekingVarName;
+    this.seekingVarName = nameMaker.unusedName('seeking')
   }
 
-  #defineOnDemand(propertyName) {
+  #defineOnDemand(propertyName, nameHint = propertyName) {
     let name = this[propertyName];
     if (!name) {
-      name = this[propertyName] =
-        this.nameMaker.unusedName(propertyName);
+      name = this[propertyName] = this.nameMaker.unusedName(nameHint);
     }
     return name;
+  }
+
+  requireActiveFns() {
+    return this.#defineOnDemand('activeFns');
   }
 
   requireMaybeNotEmptyIterator() {
@@ -85,6 +138,7 @@ export function declareAssignedNames(ast, assignedNames) {
 
   let {
     seekingVarName,
+    activeFns,
     maybeNotEmptyIterator,
     maybeNotEmptyKeyIterator,
     or,
@@ -121,6 +175,18 @@ export function declareAssignedNames(ast, assignedNames) {
       )]
     )
   );
+
+  if (activeFns) {
+    declarations.push(
+      types.variableDeclaration(
+        'let',
+        [types.variableDeclarator(
+          types.identifier(activeFns),
+          types.bigIntLiteral('0'),
+        )]
+      )
+    );
+  }
 
   if (maybeNotEmptyIterator) {
     declarations.push(
