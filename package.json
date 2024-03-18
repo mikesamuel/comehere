@@ -11,10 +11,12 @@
   },
   "type": "module",
   "scripts": {
+    "help": "echo 'test:    runs tests\nbuild:   prepares HTML and friends under dist/\nserve:   populates dist and starts a web-server for interactive testing\nclean:   removes generated files and parcel cache\npublish: sets up a commit to the gh-pages branch with updates to HTML/CSS/JS'",
     "test": "mocha --recursive test",
     "build": "parcel build --public-url '/comehere'",
     "serve": "npx parcel index.html",
-    "publish": "npm run build && ./scripts/publish-dist.sh"
+    "clean": "rm -rf dist/ .parcel-cache/",
+    "publish": "npm run clean && npm run build && ./scripts/publish-dist.sh"
   },
   "repository": {
     "type": "git",

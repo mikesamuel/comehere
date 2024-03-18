@@ -35,4 +35,8 @@ for f in $(git ls-files --others --modified); do
     git add "$f"
 done
 
-echo "cd $MY_TMPDIR/comehere; $git commit -s -m 'Pushing new version to github pages'"
+echo To TEST, run the below and browse to http://[::]:8000/comehere/index.html
+echo "cd $MY_TMPDIR; python3 -m http.server"
+echo
+echo To PUBLISH, run the below
+echo "cd $MY_TMPDIR/comehere; git commit -s -m 'Pushing new version to github pages'; git push"
