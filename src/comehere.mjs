@@ -67,6 +67,11 @@ export function blockify(ast) {
         maybeBlockifyPath(path.get('body'));
       }
     },
+    EmptyStatement(path) {
+      if (path.parentPath.isBlock()) {
+        path.replaceWithMultiple([]);
+      }
+    }
   };
   traverse(ast, visitor);
 }
@@ -223,6 +228,7 @@ function seekingCheck(
   return check;
 }
 
+/** True iff node is a desugared COMEHERE block */
 function isComehereBlock(node) {
   return types.isLabeledStatement(node) && node.label.name === 'COMEHERE' &&
     types.isWithStatement(node.body);
@@ -1313,7 +1319,7 @@ function driveControlToComeHereBlock(
  *
  * 1. If it is used in a declaration, or in the parameter list of a function,
  *    return, skipping the remaining steps.
- * 2. Let scope be the deepest common ancestor of all uses that is a function
+ * 2. Let scope be the deepest common ancestor of all uses that is a block
  *    or module body.
  * 3. Add a declaration to that common ancestor like
  *    `const $$name = [void 0, "$$name undefined"];`.
@@ -1372,38 +1378,40 @@ export function desugarDollarDollarVarShorthand(ast, assignedNames) {
       }
     }
 
-    // Find the common function ancestors
-    let commonFunctions = new Map(); // node -> path
-    function* functionsDeepestToShallowest(path) {
+    // Find the common ancestor blocks
+    let commonBlocks = new Map(); // node -> path
+    function* blockLikeDeepestToShallowest(path) {
       let p = path;
       while (p && !p.isFile()) {
-        if (p.isFunction()) { yield p; }
+        if (p.isBlock()) { // True for block statements and Programs
+          yield p;
+        }
         p = p.parentPath;
       }
     }
     uses.forEach((use, i) => {
       if (!i) { // Initialize from first.
-        for (let f of functionsDeepestToShallowest(use)) {
-          commonFunctions.set(f.node, f);
+        for (let f of blockLikeDeepestToShallowest(use)) {
+          commonBlocks.set(f.node, f);
         }
       } else { // Intersect
         let fns = new Set();
-        for (let f of functionsDeepestToShallowest(use)) {
+        for (let f of blockLikeDeepestToShallowest(use)) {
           fns.add(f.node);
         }
         let toRemove = [];
-        for (let f of commonFunctions.keys()) {
+        for (let f of commonBlocks.keys()) {
           if (!fns.has(f)) {
             toRemove.push(f);
           }
         }
         for (let f of toRemove) {
-          commonFunctions.delete(f);
+          commonBlocks.delete(f);
         }
       }
     });
     let commonAncestor;
-    for ([, commonAncestor] of commonFunctions.entries()) { break }
+    for ([, commonAncestor] of commonBlocks.entries()) { break }
     if (commonAncestor) {
       if (!collectedDeclarators.has(commonAncestor.node)) {
         collectedDeclarators.set(commonAncestor.node, []);
@@ -1451,7 +1459,7 @@ export function desugarDollarDollarVarShorthand(ast, assignedNames) {
   }
 
   for (let [fnNode, declarators] of collectedDeclarators.entries()) {
-    fnNode.body.body.unshift(
+    fnNode.body.unshift(
       types.variableDeclaration('const', declarators)
     );
   }

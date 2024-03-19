@@ -175,6 +175,15 @@ describe('comehere', () => {
             `
         );
     });
+    it('no-ops', () => {
+      expect(blockified(`;;f();;if (c) { ; }`))
+        .equals(
+          strip12`
+            f();
+            if (c) {}
+            `
+        );
+    });
   });
 
   const transformTest = ({
@@ -223,6 +232,55 @@ describe('comehere', () => {
               } finally {
                 seeking_0 = 0;
               }
+            }
+            `,
+    }));
+
+    it('dollar_vars_across_fns', () => transformTest({
+      code: strip12`
+            let x = condition
+              ? ($$foo = 'foo' + bar)
+              : (() =>
+                  $$foo = 'bar' + baz + (boo || '')
+                )();
+            COMEHERE:with ('description') {
+              console.log(...$$foo);
+            }
+            `,
+      want: strip12`
+            let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            const $$foo = ["undefined", void 0];
+            let x = condition ? ($$foo[0] = "'foo' + bar =", $$foo[1] = 'foo' + bar) : (() => {
+              return $$foo[0] = "'bar' + baz + (boo || '') =", $$foo[1] = 'bar' + baz + (boo || '');
+            })();
+            if (seeking_0 === 1) {
+              seeking_0 = 0;
+              console.log(...$$foo);
+            }
+            `,
+    }));
+
+    it('dollar_vars_scope_to_loop_body', () => transformTest({
+      code: strip12`
+            for (let i = 0; i < n; $$i = ++i) {
+              f($$el = elements[i],
+                {
+                  get last() {
+                    return $$el = elements[$$i = i - 1]
+                  }
+                });
+            }
+            `,
+      want: strip12`
+            let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            const $$i = ["undefined", void 0];
+            for (let i = 0; i < n; $$i[0] = "++i =", $$i[1] = ++i) {
+              const $$el = ["undefined", void 0];
+              f(($$el[0] = "elements[i] =", $$el[1] = elements[i]), {
+                get last() {
+                  return $$el[0] = "elements[($$i[0] = \\"i - 1 =\\", $$i[1] = i - 1)] =", $$el[1] = elements[($$i[0] = "i - 1 =", $$i[1] = i - 1)];
+                }
+              });
             }
             `,
     }));
@@ -953,6 +1011,63 @@ describe('comehere', () => {
                 console.log(a, b, '->', functionReturn_0);
               }
               return functionReturn_0;
+            }
+            if (seeking_0 === 2) {
+              try {
+                const callee_1 = f,
+                  a = 10,
+                  b = 11;
+                activeFns_0 |= 1n << 0n;
+                callee_1(a, b);
+              } finally {
+                seeking_0 = 0;
+              }
+            }
+            if (seeking_0 === 1) {
+              try {
+                const callee_0 = f,
+                  a = 1,
+                  b = -1;
+                activeFns_0 |= 1n << 0n;
+                callee_0(a, b);
+              } finally {
+                seeking_0 = 0;
+              }
+            }
+            `,
+    }));
+
+    it('tolerate_semi_after_return', () => transformTest({
+      code: strip12`
+            function f(a, b) {
+              return
+              ;;
+
+              COMEHERE:with(a = 1, b = -1) {
+                console.log(a, b, '->', Function.return);
+              }
+
+              COMEHERE:with(a = 10, b = 11) {
+                console.log(a, b, '->', Function.return);
+              }
+            }
+            `,
+      want: strip12`
+            let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
+            function f(a, b) {
+              const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+              activeFns_0 &= ~(1n << 0n);
+              let functionReturn_0;
+              if (isActiveCall_0 && seeking_0 === 1) {
+                seeking_0 = 0;
+                console.log(a, b, '->', functionReturn_0);
+              }
+              if (isActiveCall_0 && seeking_0 === 2) {
+                seeking_0 = 0;
+                console.log(a, b, '->', functionReturn_0);
+              }
+              return;
             }
             if (seeking_0 === 2) {
               try {
