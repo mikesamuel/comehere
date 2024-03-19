@@ -176,24 +176,66 @@ describe('comehere', () => {
         );
     });
   });
-  describe('transform', () => {
-    const transformTest = ({
-      code,
-      want,
-      wantErrors = [],
-    }) => new ErrorConsole().dumpIfFails((errorConsole) => {
-      let transformed = comehere.transform(code, errorConsole).code;
-      expect(wantErrors).deep.equal(errorConsole.messages.error);
-      expect(want).equal(transformed);
-    });
 
+  const transformTest = ({
+    code,
+    want,
+    wantErrors = [],
+  }) => new ErrorConsole().dumpIfFails((errorConsole) => {
+    let transformed = comehere.transform(code, errorConsole).code;
+    expect(wantErrors).deep.equal(errorConsole.messages.error);
+    expect(want).equal(transformed);
+  });
+
+  describe('transform $ vars', () => {
+    it('dollar_var_shorthand', () => transformTest({
+      code: strip12`
+            function f(x, y) {
+              let result = ($$0 = x + 3) / ($$1 = y || 1);
+              COMEHERE:with (x = '1', y = 4) {
+                console.log(...$$0, ...$$1);
+              }
+              return result;
+            }
+            `,
+      want: strip12`
+            let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
+            function f(x, y) {
+              const $$0 = ["undefined", void 0],
+                $$1 = ["undefined", void 0];
+              const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+              activeFns_0 &= ~(1n << 0n);
+              let result = ($$0[0] = "x + 3 =", $$0[1] = x + 3) / ($$1[0] = "y || 1 =", $$1[1] = y || 1);
+              if (isActiveCall_0 && seeking_0 === 1) {
+                seeking_0 = 0;
+                console.log(...$$0, ...$$1);
+              }
+              return result;
+            }
+            if (seeking_0 === 1) {
+              try {
+                const callee_0 = f,
+                  x = '1',
+                  y = 4;
+                activeFns_0 |= 1n << 0n;
+                callee_0(x, y);
+              } finally {
+                seeking_0 = 0;
+              }
+            }
+            `,
+    }));
+  });
+
+  describe('transform COMEHERE', () => {
     it('comeheres_with_empty_bodies', () => transformTest({
       code: strip12`
             function f(x) {
-              COMEHERE: with ("foo", x = 1) {
+              COMEHERE:with ("foo", x = 1) {
               }
             }
-            COMEHERE: with ("bar") {
+            COMEHERE:with ("bar") {
             }
             `,
       want: strip12`
@@ -227,7 +269,7 @@ describe('comehere', () => {
       code: strip12`
             export function f(a, b) {
               let result = a * b;
-              COMEHERE: with (f.a = 6, b = 8) {
+              COMEHERE:with (f.a = 6, b = 8) {
                 console.log('result', result, ', wanted', 42);
               }
               return result;
@@ -267,7 +309,7 @@ describe('comehere', () => {
                 foo();
               } else {
                 let x = h();
-                COMEHERE: with (_) {
+                COMEHERE:with (_) {
                   console.log('h ->', x);
                 }
               }
@@ -293,13 +335,13 @@ describe('comehere', () => {
       code: strip12`
             try {
               f();
-              COMEHERE: with (_) { a(); }
+              COMEHERE:with (_) { a(); }
             } catch {
               g();
-              COMEHERE: with (_) { b(); }
+              COMEHERE:with (_) { b(); }
             } finally {
               h();
-              COMEHERE: with (_) { c(); }
+              COMEHERE:with (_) { c(); }
             }
             `,
       want: strip12`
@@ -332,7 +374,7 @@ describe('comehere', () => {
     it('comehere_within_catch_from_empty_try', () => transformTest({
       code: strip12`
             try {} catch {
-              COMEHERE: with (_) { a(); }
+              COMEHERE:with (_) { a(); }
             }
             `,
       want: strip12`
@@ -353,15 +395,15 @@ describe('comehere', () => {
     it('comehere_within_simple_loops', () => transformTest({
       code: strip12`
             while (c) {
-              COMEHERE: with (_) { a(); }
+              COMEHERE:with (_) { a(); }
               f();
             }
             for (;d;) {
-              COMEHERE: with (_) { b(); }
+              COMEHERE:with (_) { b(); }
               g();
             }
             do {
-              COMEHERE: with (_) { c(); }
+              COMEHERE:with (_) { c(); }
               h();
             } while (e);
             `,
@@ -394,11 +436,11 @@ describe('comehere', () => {
     it('comehere_within_iterator_loops', () => transformTest({
       code: strip12`
             for (p in o) {
-              COMEHERE: with (_) { a(); }
+              COMEHERE:with (_) { a(); }
               f();
             }
             for (e of els) {
-              COMEHERE: with (_) { b(); }
+              COMEHERE:with (_) { b(); }
               g();
             }
             `,
@@ -447,7 +489,7 @@ describe('comehere', () => {
                 break;
               case g():
                 let y = b();
-                COMEHERE: with (_) {
+                COMEHERE:with (_) {
                   console.log('Hello', y);
                 }
                 break;
@@ -775,7 +817,7 @@ describe('comehere', () => {
       code: strip12`
             ({
               method(x) {
-                COMEHERE: with(x = 1) {
+                COMEHERE:with(x = 1) {
                   console.log(this, x);
                 }
               }
@@ -813,7 +855,7 @@ describe('comehere', () => {
             ({
               _x: 123,
               get [someSymbol]() {
-                COMEHERE: with(_) {
+                COMEHERE:with(_) {
                   console.log(this._x);
                 }
                 return this._x;
@@ -855,7 +897,7 @@ describe('comehere', () => {
       it('||', () => transformTest({
         code: strip12`
             a() || ((x) => {
-              COMEHERE: with (x = 1) {
+              COMEHERE:with (x = 1) {
                 console.log(x);
               }
               return use(x);
@@ -899,7 +941,7 @@ describe('comehere', () => {
       it('&&', () => transformTest({
         code: strip12`
             a() && ((x) => {
-              COMEHERE: with (x = 1) {
+              COMEHERE:with (x = 1) {
                 console.log(x);
               }
               return use(x);
@@ -944,13 +986,13 @@ describe('comehere', () => {
         code: strip12`
             a()
             ? ((x) => {
-                COMEHERE: with (x = 1) {
+                COMEHERE:with (x = 1) {
                   console.log(x);
                 }
                 return x + 1;
               })
             : ((x) => {
-                COMEHERE: with (x = 2) {
+                COMEHERE:with (x = 2) {
                   console.log(x);
                 }
                 return x - 1;

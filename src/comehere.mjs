@@ -18,6 +18,7 @@ import { traverse, generate } from './babel-bits-and-bobs.mjs';
 import * as types from '@babel/types';
 import { NameMaker, namesUsedIn } from './name-maker.mjs';
 import { AssignedNames, declareAssignedNames } from './assigned-names.mjs';
+import { isDeclared } from './ast-declared.mjs';
 
 /**
  * Ensure that control-flow statements use blocks around statements
@@ -1185,6 +1186,161 @@ function driveControlToComeHereBlock(
 }
 
 /**
+ * Allow for syntax like `$$0` to be used to capture names in a way that
+ * aids debugging.
+ *
+ * This syntax looks for all uses of identifiers that start with
+ * two dollar signs.
+ *
+ * For each such name, refered to as `$$name` below, do the following:
+ *
+ * 1. If it is used in a declaration, or in the parameter list of a function,
+ *    return, skipping the remaining steps.
+ * 2. Let scope be the deepest common ancestor of all uses that is a function
+ *    or module body.
+ * 3. Add a declaration to that common ancestor like
+ *    `const $$name = [void 0, "$$name undefined"];`.
+ * 4. For each use of $$name, it is either the left-hand side of an assignment
+ *   expression or it is not.
+ *   a. If use is the child of a spread expression, continue to the next use.
+ *   b. If use is the left of an assignment expression, let sourceText be
+ *     the result of converting the right-hand side to JavaScript followed
+ *     by a space followed by the assignment operator reversed.
+ *     So if use's parent is `$$name += f() - 1`, sourceText is "f() - 1 =+".
+ *   c. Else sourceText is null.
+ *   d. rewrite it to `$$name[0]`.
+ *   e. If sourceText is non-null, replace it's parent with a sequence
+ *      expression that assigns sourceText to `$$name[1]`.
+ *      So `$$name += f() - 1` becomes
+ *      `($$name[1] = "f() - 1 =+", $$name[0] += f() - 1)`.
+ *
+ * With that transformation in place, `$$name` can be used to capture the
+ * result of an intermediate expression, and can be spread into logging calls.
+ *
+ *     function g() { return 42 }
+ *
+ *     let x = f($$0 = g());
+ *     console.log(...$$0); // Logs 'g() = 42'
+ *
+ * That gives a hint about the expression that last affected the value of
+ * the sub-expression.
+ */
+export function desugarDollarDollarVarShorthand(ast, assignedNames) {
+  let dollarDollarNameToUses = new Map();
+  traverse(
+    ast,
+    {
+      Identifier(path) {
+        let {name} = path.node;
+        if (name.substring(0, 2) === '$$') {
+          if (!dollarDollarNameToUses.has(name)) {
+            dollarDollarNameToUses.set(name, []);
+          }
+          dollarDollarNameToUses.get(name).push(path);
+        }
+      }
+    }
+  );
+
+  // Group all the declarations for each function together
+  // so that we can use a single const declaration.
+  //     const $$0 = [...], $$1 = [...];
+  let collectedDeclarators = new Map();
+
+  name_loop:
+  for (let [name, uses] of dollarDollarNameToUses.entries()) {
+    for (let use of uses) {
+      if (isDeclared(use)) {
+        continue name_loop;
+      }
+    }
+
+    // Find the common function ancestors
+    let commonFunctions = new Map(); // node -> path
+    function* functionsDeepestToShallowest(path) {
+      let p = path;
+      while (p && !p.isFile()) {
+        if (p.isFunction()) { yield p; }
+        p = p.parentPath;
+      }
+    }
+    uses.forEach((use, i) => {
+      if (!i) { // Initialize from first.
+        for (let f of functionsDeepestToShallowest(use)) {
+          commonFunctions.set(f.node, f);
+        }
+      } else { // Intersect
+        let fns = new Set();
+        for (let f of functionsDeepestToShallowest(use)) {
+          fns.add(f.node);
+        }
+        let toRemove = [];
+        for (let f of commonFunctions.keys()) {
+          if (!fns.has(f)) {
+            toRemove.push(f);
+          }
+        }
+        for (let f of toRemove) {
+          commonFunctions.delete(f);
+        }
+      }
+    });
+    let commonAncestor;
+    for ([, commonAncestor] of commonFunctions.entries()) { break }
+    if (commonAncestor) {
+      if (!collectedDeclarators.has(commonAncestor.node)) {
+        collectedDeclarators.set(commonAncestor.node, []);
+      }
+      collectedDeclarators.get(commonAncestor.node).push(
+        types.variableDeclarator(
+          types.identifier(name),
+          types.arrayExpression([
+            types.stringLiteral('undefined'),
+            types.unaryExpression('void', types.numericLiteral(0)),
+          ]),
+        )
+      );
+    }
+
+    // Now edit them.
+    for (let use of uses) {
+      let parent = use.parentPath;
+      if (parent.isSpreadElement()) { continue; }
+      use.replaceWith(
+        types.memberExpression(
+          use.node,
+          types.numericLiteral(1),
+          /* computed */ true,
+        )
+      );
+      if (parent.isAssignmentExpression() && use.node === parent.node.left) {
+        let sourceText = `${generate(parent.node.right).code} ${parent.node.operator.split('').reverse().join('')}`;
+        parent.replaceWith(
+          types.sequenceExpression([
+            types.assignmentExpression(
+              '=',
+              types.memberExpression(
+                types.identifier(name),
+                types.numericLiteral(0),
+                /* computed */ true,
+              ),
+              types.stringLiteral(sourceText),
+            ),
+            parent.node,
+          ])
+        );
+      }
+    }
+  }
+
+  for (let [fnNode, declarators] of collectedDeclarators.entries()) {
+    fnNode.body.body.unshift(
+      types.variableDeclaration('const', declarators)
+    );
+  }
+}
+
+/**
  * Recognize and rewrite a module that may contain
  * `COMEHERE: with (...) { ... }` syntax to drive control
  * to a COMEHERE block of the developer's choice.
@@ -1212,6 +1368,8 @@ export function transform(jsSource, console = globalThis.console) {
   let comeHereBlocks = extractComeHereBlocks(ast, assignedNames, console);
 
   driveControlToComeHereBlocks(comeHereBlocks, assignedNames, console);
+
+  desugarDollarDollarVarShorthand(ast, assignedNames);
 
   declareAssignedNames(ast, assignedNames);
 
