@@ -223,6 +223,103 @@ function seekingCheck(
   return check;
 }
 
+function isComehereBlock(node) {
+  return types.isLabeledStatement(node) && node.label.name === 'COMEHERE' &&
+    types.isWithStatement(node.body);
+}
+
+/**
+ * It's convenient to be able to use a COMEHERE block that can log the
+ * function result.
+ *
+ * This identifies such blocks, before they are desugared into simpler
+ * constructs and makes sure that they run anyway.
+ */
+function pullComeHereBlocksAfterReturnIntoFinally(ast, assignedNames) {
+  //    return x;
+  //    COMEHERE:with (...) { ... }
+  // ->
+  //    let functionReturn_0;
+  //    try {
+  //      return (functionReturn_0 = x);
+  //    } finally {
+  //      COMEHERE:with (...) { ... }
+  //    }
+
+  // We look for return statements, then look forward for
+  // COMEHERE blocks and adjust from there.
+  let visitor = {
+    ReturnStatement: {
+      exit(returnPath) {
+        let containing = returnPath.parentPath;
+        if (!containing.isBlockStatement()) { return }
+        let statements = containing.node.body;
+        let returnIndex = statements.indexOf(returnPath.node);
+        let candidateIndex = returnIndex + 1;
+        while (candidateIndex < statements.length) {
+          let candidate = statements[candidateIndex];
+          if (!isComehereBlock(candidate)) { break }
+          candidateIndex += 1;
+        }
+        let first = returnIndex + 1;
+        let afterLast = candidateIndex;
+        let nComeHereBlocks = afterLast - first;
+        let comeHereBlocks = statements.slice(first, afterLast);
+        if (nComeHereBlocks) {
+          let functionReturnName = assignedNames.nameMaker
+              .unusedName('functionReturn');
+
+          // Rewrite Function.return
+          for (let i = first; i < afterLast; ++i) {
+            let comeHereBlockBodyPath = containing.get(`body.${i}`)
+                .get('body').get('body');
+            traverse(
+              comeHereBlockBodyPath.node,
+              {
+                MemberExpression(path) {
+                  let {object, computed, property} = path.node;
+                  if (
+                    !computed &&
+                      types.isIdentifier(object) &&
+                      object.name === 'Function' &&
+                      types.isIdentifier(property) &&
+                      property.name === 'return'
+                  ) {
+                    path.replaceWith(types.identifier(functionReturnName));
+                  }
+                }
+              },
+              comeHereBlockBodyPath.scope,
+            )
+          }
+
+          let returned = returnPath.get('argument');
+          let returnedExpression = returned.node;
+          if (returnedExpression) {
+            returned.replaceWith(types.identifier(functionReturnName));
+          }
+          statements.splice(
+            returnIndex,
+            afterLast,
+            types.variableDeclaration(
+              'let',
+              [
+                types.variableDeclarator(
+                  types.identifier(functionReturnName),
+                  returnedExpression,
+                )
+              ]
+            ),
+            ...comeHereBlocks,
+            returnPath.node,
+          );
+        }
+      }
+    }
+  }
+  traverse(ast, visitor);
+}
+
 /**
  * Converts `COMEHERE: with (initializers) { ... }` to
  * `if (seeking_0 === 1) { seeking_0 = 0; ... }` and squirrels away
@@ -251,7 +348,7 @@ function extractComeHereBlocks(
 
     WithStatement(path) {
       let parentPath = path.parentPath;
-      if (parentPath.isLabeledStatement() && parentPath.node.label.name === 'COMEHERE') {
+      if (isComehereBlock(parentPath.node)) {
         // Zero as a seekingValue means not seeking any COMEHERE.
         let seekingValue = extracted.length + 1;
         let initializersNode = path.get('object').node;
@@ -409,6 +506,27 @@ function driveControlToComeHereBlock(
 
   let initializers = comeHereBlock.initializers;
 
+  // To drive control into a function, we need to synthesize a call.
+  // To that end, we build argument lists by pulling expressions out
+  // of the COMEHERE block's initializer list.
+  // We need arguments for the call, and if the callable is a method,
+  // we may need to construct a `this` value which requires building
+  // an argument list for the class's constructor.
+  // Find a dotted name among unused initializers and consume it.
+  // Returns [undottedParamName, initializer] pair or null if not found.
+  function lookupAndConsumeParam(prefix, paramName) {
+    let wantedDottedName = [...prefix, paramName].join('.');
+    let initializerIndex = initializers.findIndex(
+      ([dottedName]) => dottedName === wantedDottedName
+    );
+    if (initializerIndex >= 0) {
+      let [_, initializer] = initializers[initializerIndex];
+      initializers.splice(initializerIndex, 1);
+      return [paramName, initializer];
+    }
+    return null;
+  }
+
   let seekingCheckForBlock = seekingCheck.bind(null, assignedNames, seekingValue);
 
   // Walk rootward from the path adding instructions.
@@ -546,10 +664,31 @@ function driveControlToComeHereBlock(
       //   -> try { if (seekingVar === seekingValue) { throw null; } ... }
       let catchClause = path.get('handler');
       if (goal.node === catchClause.node) {
+        let catchParam = catchClause.node.param;
+        let catchParamName = catchParam && types.isIdentifier(catchParam)
+            ? catchParam.name
+            : null;
+        // If the catch parameter name is 'e', then we fall through
+        // several strategies to find the expression to throw:
+        //    catch.e
+        //    e
+        // If neither of those work, we just `throw new globalThis.Error`.
+        let throwableExpression = (
+            catchParamName
+            ? (lookupAndConsumeParam(['catch'], catchParamName)
+               || lookupAndConsumeParam([], catchParamName))?.[1]
+            : null
+        ) || types.newExpression(
+          types.memberExpression(
+            types.identifier('globalThis'),
+            types.identifier('Error')
+          ),
+          []
+        );
         let conditionalThrow = types.ifStatement(
           seekingCheckForBlock(path),
           types.blockStatement([
-            types.throwStatement(types.nullLiteral()),
+            types.throwStatement(throwableExpression),
           ])
         );
         let tryBlock = path.get('block')
@@ -634,28 +773,6 @@ function driveControlToComeHereBlock(
       let {node} = path;
       if (node.body === goal.node) {
         let { isActiveCall, bitIndex } = ensureActiveFnBodyPrefixPresent(path, assignedNames);
-
-        // To drive control into a function, we need to synthesize a call.
-        // To that end, we build argument lists by pulling expressions out
-        // of the COMEHERE block's initializer list.
-        // We need arguments for the call, and if the callable is a method,
-        // we may need to construct a `this` value which requires building
-        // an argument list for the class's constructor.
-
-        // Find a dotted name among unused initializers and consume it.
-        // Returns [undottedParamName, initializer] pair or null if not found.
-        function lookupAndConsumeParam(prefix, paramName) {
-          let wantedDottedName = [...prefix, paramName].join('.');
-          let initializerIndex = initializers.findIndex(
-            ([dottedName]) => dottedName === wantedDottedName
-          );
-          if (initializerIndex >= 0) {
-            let [_, initializer] = initializers[initializerIndex];
-            initializers.splice(initializerIndex, 1);
-            return [paramName, initializer];
-          }
-          return null;
-        }
 
         let nameId = node.id;
         if (nameId == null && types.isIdentifier(node.key) && !node.computed) {
@@ -1364,6 +1481,8 @@ export function transform(jsSource, console = globalThis.console) {
   blockify(ast);
 
   let assignedNames = new AssignedNames(nameMaker);
+
+  pullComeHereBlocksAfterReturnIntoFinally(ast, assignedNames);
 
   let comeHereBlocks = extractComeHereBlocks(ast, assignedNames, console);
 

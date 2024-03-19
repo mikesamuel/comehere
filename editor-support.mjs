@@ -1,3 +1,6 @@
+// Browser-only JavaScript for ./index.html
+// Non-browser-only sources are under src/
+
 import {basicSetup} from "codemirror";
 import {EditorView, keymap} from "@codemirror/view";
 import {EditorState} from "@codemirror/state";
@@ -9,24 +12,52 @@ import * as comehere from './src/comehere.mjs';
 const sampleInput = `
 // Computes an equation given numbers from HTML <input>s.
 function aBuggyFunction(x, y, z) {
-  // let result = (+ x + + y) * z; // OLD
-  let result = (x + y) * z;        // NEW
   // FIXME: The old version worked but looked odd!
   // Why doesn't it work now?
-  COMEHERE: with ("let's debug!",
-                  x = '2', y = '4', z = '7') {
+
+  let oldResult = ($$0 = + x + + y) * z; // OLD
+  return              ($$1 = x + y) * z; // NEW
+
+  // We capture intermediate results with $$0 and $$1
+  // and then a COMEHERE block causes control to come
+  // here so we don't have to synthesize a whole program
+  // input that gets the values we want here.
+
+  COMEHERE:with ("let's debug!",
+                 x = '2', y = '4', z = '7') {
     // COMEHERE will synthesize a call to the
     // function so this code below gets called
     // with those values of x, y, and z.
-    console.log('x + y =', (x + y));
-    console.log('+ x + + y =', (+ x + + y));
+    console.log(...$$0);
+    console.log(...$$1);
+    console.log('->', Function.return);
   }
-  return result;
 }
 `.trim();
 
+let initialEditorContent = sampleInput;
+const EDITOR_CONTENT_ITEM_NAME = 'editorContent';
+try {
+  let storedContent = globalThis.localStorage.getItem(
+    EDITOR_CONTENT_ITEM_NAME
+  );
+  if (storedContent) {
+    initialEditorContent = storedContent;
+  }
+} catch (e) {
+  // fall back to sampleInput
+}
+
+globalThis.resetStoredContent = () => {
+  globalThis.localStorage.setItem(
+    EDITOR_CONTENT_ITEM_NAME,
+    sampleInput
+  );
+  globalThis.location.reload();
+};
+
 let editorView = new EditorView({
-  doc: sampleInput,
+  doc: initialEditorContent,
   extensions: [
     basicSetup,
     keymap.of([indentWithTab]),
@@ -65,6 +96,7 @@ let translationView = new EditorView({
     basicSetup,
     javascript(),
     EditorState.readOnly.of(true),
+    EditorView.lineWrapping,
   ],
   parent: document.querySelector("#translation")
 });
@@ -80,6 +112,11 @@ function retranslate() {
   try {
     console.clear();
     let jsSource = editorView.state.doc.toString();
+    // Save the source so that reloading the page will restore
+    // the last translated version.
+    globalThis.localStorage.setItem(
+      EDITOR_CONTENT_ITEM_NAME, jsSource
+    );
     currentTranslation = comehere.transform(jsSource);
     translatedCode = currentTranslation.code;
   } catch (e) {
@@ -90,12 +127,17 @@ function retranslate() {
   translationView.dispatch(
     { changes: {from: 0, to: translationView.state.doc.length, insert: translatedCode} }
   );
+  // TODO: maybe use codemirror.net/5/doc/manual.html#addon_merge to highlight
+  // differences, ideally at a token level, between the input & the translation.
 
   // Update the select dropdown if the options changed
   if (currentTranslation) {
     let select = document.querySelector('#block-choice');
     let options = [...select.querySelectorAll('option')];
-    let newOptions = currentTranslation.blocks.map((x, i) => x || `Choice ${i + 1}`);
+    let newOptions = [
+      ...currentTranslation.blocks.map((x, i) => x || `Choice ${i + 1}`),
+      'Seek nothing'
+    ];
     let changed = options.length !== newOptions.length;
     if (!changed) {
       for (let i = 0, n = options.length; i < n; ++i) {
@@ -110,9 +152,13 @@ function retranslate() {
         option.parentNode.removeChild(option);
       }
       for (let i = 0, n = newOptions.length; i < n; ++i) {
+        // Seeking values are 1-indexed, but we have the
+        // 'seek nothing' option at the end.
+        let isSeekNothing = i == n - 1;
+        let seekingValue = isSeekNothing ? 0 : i + 1;
         let newOptionNode = document.createElement('option');
+        newOptionNode.value = `${seekingValue}`;
         newOptionNode.textContent = newOptions[i];
-        newOptionNode.value = `${i + 1}`;
         select.appendChild(newOptionNode);
       }
     }
@@ -166,7 +212,7 @@ let originalConsole = globalThis.console;
 
   consoleWrapper.clear = function () {
     indent = 0;
-    for (let child = consoleView.firstChild; child; child = child.nextSibling) {
+    for (let child; child = consoleView.firstChild;) {
       consoleView.removeChild(child);
     }
   };
@@ -189,6 +235,7 @@ let originalConsole = globalThis.console;
     };
   }
   globalThis.console = consoleWrapper;
+  globalThis.onerror = (e) => { consoleWrapper.error(e) };
 }
 
 function getWhichSeeking(meta) {
@@ -220,3 +267,43 @@ console.groupEnd();
 document.querySelector('#play-button').onclick = runCurrentTranslation;
 
 scheduleTranslation();
+
+// Once the page has loaded, make the example scripts interactive by
+// allowing replacing the editor content.
+function setEditorContent(newContent) {
+  editorView.dispatch(
+    {
+      changes: {
+        from: 0,
+        to: editorView.state.doc.length,
+        insert: newContent
+      }
+    }
+  );
+}
+
+function showScrollBackButton(target) {
+  let scrollBackButton = document.querySelector('#scroll-back-button');
+  let scrollBackButtonRow = document.querySelector('#scroll-back-button-row');
+  scrollBackButton.onclick = () => {
+    target.scrollIntoView();
+  };
+  scrollBackButtonRow.style.display = '';
+}
+
+{
+  for (let example of document.querySelectorAll('table.example-display td.left')) {
+    let text = example.textContent;
+    let button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = '\ud83d\udccb'; // Clipboard
+    button.className = 'copy-button';
+    button.title = 'copy to editor';
+    example.insertBefore(button, example.firstChild);
+    button.onclick = () => {
+      setEditorContent(text);
+      showScrollBackButton(example);
+      document.querySelector('#editor-table').scrollIntoView();
+    };
+  }
+}

@@ -348,7 +348,7 @@ describe('comehere', () => {
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
             try {
               if (seeking_0 === 2) {
-                throw null;
+                throw new globalThis.Error();
               }
               f();
               if (seeking_0 === 1) {
@@ -371,6 +371,36 @@ describe('comehere', () => {
             `,
     }));
 
+    it('comehere_to_catch_with_supplied_exn', () => transformTest({
+      code: strip12`
+            try {
+              f();
+            } catch (e) {
+              g();
+              COMEHERE:with (e = new SyntaxError('wot?')) { b(); }
+            } finally {
+              h();
+            }
+            `,
+      want: strip12`
+            let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            try {
+              if (seeking_0 === 1) {
+                throw new SyntaxError('wot?');
+              }
+              f();
+            } catch (e) {
+              g();
+              if (seeking_0 === 1) {
+                seeking_0 = 0;
+                b();
+              }
+            } finally {
+              h();
+            }
+            `,
+    }));
+
     it('comehere_within_catch_from_empty_try', () => transformTest({
       code: strip12`
             try {} catch {
@@ -381,7 +411,7 @@ describe('comehere', () => {
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
             try {
               if (seeking_0 === 1) {
-                throw null;
+                throw new globalThis.Error();
               }
             } catch {
               if (seeking_0 === 1) {
@@ -890,6 +920,62 @@ describe('comehere', () => {
                 return this.accessor_0;
               }
             });
+            `,
+    }));
+
+    it('comehere_after_return', () => transformTest({
+      code: strip12`
+            function f(a, b) {
+              return a + b;
+
+              COMEHERE:with(a = 1, b = -1) {
+                console.log(a, b, '->', Function.return);
+              }
+
+              COMEHERE:with(a = 10, b = 11) {
+                console.log(a, b, '->', Function.return);
+              }
+            }
+            `,
+      want: strip12`
+            let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            let activeFns_0 = 0n;
+            function f(a, b) {
+              const isActiveCall_0 = activeFns_0 >> 0n & 1n;
+              activeFns_0 &= ~(1n << 0n);
+              let functionReturn_0 = a + b;
+              if (isActiveCall_0 && seeking_0 === 1) {
+                seeking_0 = 0;
+                console.log(a, b, '->', functionReturn_0);
+              }
+              if (isActiveCall_0 && seeking_0 === 2) {
+                seeking_0 = 0;
+                console.log(a, b, '->', functionReturn_0);
+              }
+              return functionReturn_0;
+            }
+            if (seeking_0 === 2) {
+              try {
+                const callee_1 = f,
+                  a = 10,
+                  b = 11;
+                activeFns_0 |= 1n << 0n;
+                callee_1(a, b);
+              } finally {
+                seeking_0 = 0;
+              }
+            }
+            if (seeking_0 === 1) {
+              try {
+                const callee_0 = f,
+                  a = 1,
+                  b = -1;
+                activeFns_0 |= 1n << 0n;
+                callee_0(a, b);
+              } finally {
+                seeking_0 = 0;
+              }
+            }
             `,
     }));
 

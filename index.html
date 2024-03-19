@@ -3,13 +3,52 @@
   <meta charset="utf-8">
   <title>Rebooting printf debugging</title>
   <link rel="stylesheet" href="styles/styles.css">
+  <link rel="stylesheet" href="styles/pygments.css">
   <body>
     <h1>Rebooting printf debugging<br><small>Towards scanf debugging</small></h1>
 
-    <table>
+    <p>
+      Printf debugging is no substitute for robust, automated test suites, but
+      it is a critical practice in exploring, understanding, and debugging code.
+      JavaScript introduced the <code>debugger</code> keyword almost thirty years
+      ago to aid in debugging.
+      But the language has only added one feature since then to
+      explicitly aid debugging: <code>console</code>.
+    </p>
+
+    <p>
+      We are proud to announce a JavaScript language proposal to make it easier
+      to printf debug large JavaScript projects.
+      This is the culmination of research by many brilliant people at (TODO: fake organization).
+    </p>
+
+    <p>
+      Below, you can see the proposal in action!
+      Imagine you're debugging a piece of code.
+      You suspect that some inputs to a <i>deeply nested helper function</i> will
+      help you understand what's going on.
+      But getting the right inputs to that function requires reverse
+      engineering a <i>program input</i> that would cause the desired function call.
+      That's now unnecessary. Simply tell the program to <big><code>COMEHERE</code></big> with
+      the inputs you want, and it will.
+    </p>
+
+    <table id="editor-table">
+      <tr id="scroll-back-button-row" style="display:none">
+        <td width="50%" colspan="2" align="center">
+          <button id="scroll-back-button">Go back to article &#x2935;</button>
+        </td>
+      </tr>
+
       <tr>
         <td valign="top" width="50%"><div id="editor"></div>
-          <button id="play-button" type="button">▶️</button> <select id="block-choice"></select>
+          <button id="play-button" type="button"
+                  title="Run the code in the editor on the left">▶️</button>
+          <select id="block-choice"></select>
+          <p>
+            <big>⬑</big> That play button runs the code.  The selector lets
+            you pick which <big><code>COMEHERE</code></big> block to run.
+          </p>
           <div id="console-output"></div></td>
         <td valign="top" width="50%"><div id="translation"></div></td>
       </tr>
@@ -17,5 +56,217 @@
 
     <script type="module" src="./editor-support.mjs"></script>
 
+    <p>
+      On the left you can see a sample program that uses <big><code>COMEHERE:with</code></big>
+      to cause a function to be called with certain inputs.
+      And then it logs those outputs.
+      It's <i>printf debugging on steroids</i>!
+    </p>
+
+    <p>
+      Hit the <i>play</i> button below the editor to see the console
+      output from the <big><code>COMEHERE</code></big> block body.
+      Below are the parts of a <big><code>COMEHERE</code></big> block:
+    </p>
+
+    <ul>
+      <li>There's a syntactic marker.  This is placeholder syntax
+        that let's us integrate the proposal into existing toolchains.
+      <li>If there's a quoted string right after the open parenthesis,
+        it's a <i>description</i>.  It's optional but providing it helps
+        tools like the developer console make it easy to pick the
+        right block when interactively debugging a module.
+      <li>Then there are zero or more <i>assignments</i>. This lets the
+        developer control the values of inputs to functions and
+        class instances that contain the target
+        <big><code>COMEHERE</code></big> block.
+      <li>Finally, there's a <i>body</i>, statements to run that help
+        the developer understand their code.</li>
+    </ul>
+
+    <style>
+      span.part-marker { position: relative; border: 1px dashed #44d }
+      span.part-marker > span {
+        background: #ccf; border: 1px dotted #44d; position: absolute;
+        font-size: 8pt;
+        text-wrap: nowrap;
+        position: absolute;
+      }
+      span.part-marker#part-marking-syntax > span,
+      span.part-marker#part-desc > span,
+      span.part-marker#part-assigns > span {
+        top: -2.5ex;
+      }
+      span.part-marker#part-marking-syntax > span {
+        left: 2em;
+      }
+      span.part-marker#part-desc > span {
+        left: 0.75em;
+      }
+      span.part-marker#part-assigns > span {
+        left: 1.5em;
+      }
+      span.part-marker#part-body > span {
+        bottom: -2.5ex;
+      }
+
+      #annotated-syntax-example { padding-left: 3em }
+    </style>
+    <p id="annotated-syntax-example"><br>
+    <code><span class="part-marker" id="part-marking-syntax"><span>Syntactic marker</span>COMEHERE:with</span> (<span class="part-marker" id="part-desc"><span>Optional description</span>"Lorem Ipsum"</span>, <span class="part-marker" id="part-assigns"><span>Desired bindings</span>x = 1, y = 2</span>) {
+      <br>&nbsp; <span class="part-marker" id="part-body"><span>Statements to run</span>body;</span>
+      <br>}</code>
+    </p>
+
+    <p>
+      <big><code>COMEHERE</code></big> works by
+      &ldquo;driving control&rdquo; to the block.
+      Look at the top line of the translation on the right above;
+      when <code>seeking_0</code> is <code>1</code>, it'll call
+      the containing function, and within it, will log some
+      information about intermediate values.
+    </p>
+
+    <p>
+      With <big><code>COMEHERE</code></big>, loading the module
+      has the side-effect of letting the user
+      (via <code>debugHooks</code>) choose what to debug and
+      logging valuable information.  No need to reverse engineer
+      program state to explore what's going wrong.
+      But when <code>seeking_0</code> is 0, it has no semantic
+      effect on the code.
+    </p>
+
+    <p>
+      &ldquo;Driving control&rdquo; means making branching choices
+      that end up running the chosen <big><code>COMEHERE</code></big>
+      blocks.  In the below you can see two blocks.  <small>(Hit the
+      '📋' button to play with the example code in the editor
+      above.)</small>  If <code>seeking_0</code> is 1 then it ignores
+      the result of <code>Math.random()</code> and jumps into
+      the <i>then</i> branch regardless; if it's 2 it jumps into
+      the <i>else</i> branch regardless; otherwise it runs as if there
+      were no <big><code>COMEHERE</code></big> blocks at all.
+    </p>
+
+    <include src=".html-includes/side-by-side/if.html"></include>
+
+    <p>
+      Similar code translation tricks drive control into other constructs &hellip;
+    </p>
+
+    <p>Loops bodies:</p>
+
+    <include src=".html-includes/side-by-side/loop.html"></include>
+
+    <p>Switch cases:</p>
+
+    <include src=".html-includes/side-by-side/switch.html"></include>
+
+    <p>Catch blocks inside try statements:</p>
+
+    <include src=".html-includes/side-by-side/catch.html"></include>
+
+    <p>Members in classes:</p>
+
+    <include src=".html-includes/side-by-side/class-method.html"></include>
+
+    <p>
+      Short-circuiting expressions, expressions that blur the
+      distinction between expressions and control flow.
+    </p>
+
+    <include src=".html-includes/side-by-side/short-circuits.html"></include>
+
+    <p>
+      Below is a tricky example. A recursive function that recurses
+      <i>before</i> reaching the <big><code>COMEHERE</code></big> block.
+      If the translation wasn't careful, <code>n</code> would be 2 when
+      it was first reached instead of 10 as requested.
+    </p>
+
+    <include src=".html-includes/side-by-side/fibonacci.html"></include>
+
+    <p>
+      Another thing to note is that, when one or more
+      <big><code>COMEHERE</code></big> blocks occur right after a
+      <code>return</code> statement, they can run and the special
+      expression <code>Function.return</code> refers to the returned
+      value. (That syntax only works inside those blocks)
+    </p>
+
+    <p>
+      We asked more than twenty veteran printf-debuggers, &ldquo;if you could
+      make one change to printf to make it even more obviously the
+      best way to debug programs, what would it be?&rdquo;
+      Unanimously, they wanted to print a value alongside the code
+      that produced it.
+    </p>
+
+    <p>
+      Any variable that starts with two dollar-signs
+      (<code>$$0</code>, <code>$$foo</code>, etc.), and which is
+      not defined in the containing module is treated specially:
+    </p>
+
+    <ul>
+      <li>We create a definition in the deepest function or module
+        body that contains all references to that variable.
+      <li>When the variable is assigned, we store information
+        about the code that derived the new value.
+      <li>When the variable is used in a spread (<code>...$$0</code>),
+        the code precedes the value.
+    </ul>
+
+    <p>
+      That enables wrapping a complex intermediate expression
+      in <code>($$0 = complexIntermediate())</code> followed by
+      <code>console.log(...$$0)</code>.
+    </p>
+
+    <include src=".html-includes/side-by-side/dollarDollar.html"></include>
+
+    <p>
+      And if the $$name variable is assigned along multiple paths,
+      that code reflects the last affecting intermediate expression.
+    </p>
+
+    <include src=".html-includes/side-by-side/abs.html"></include>
+
+    <p>
+      But wait, there's more! If we can super-charge <i>printf
+      debugging</i>, what about other format string functions?
+      We pored over both <i>"stdio.h"</i> and
+      <i>&laquo;stdio.h&raquo;</i>, and we're super proud to
+      announce that COMEHERE enables an entirely new debugging
+      paradigm: <i>scanf debugging</i>.
+    </p>
+
+    <p>
+      Below, the arguments for the function come from interactive
+      browser functions.
+    </p>
+
+    <include src=".html-includes/side-by-side/square-prompt.html"></include>
+
+    <p>TODO: Be super defensive about being a low rent version of
+    <a href="https://www.youtube.com/watch?v=PUv66718DII&amp;list=PLS4RYH2XfpAmswi1WDU6lwwggruEZrlPH">&ldquo;Inventing on Principle&rdquo;</a>.</p>
+
+    <p>
+      TODO: decorator that recurses before call corner-case discussion.
+      Decorators, unlike function proxies, intercept simple calls by name.
+      A decorator that wraps a function in a way that recurses with different
+      arguments before invoking with the arguments would observe activeFns
+      in an unintentional state.
+
+      There are solutions to this problem but they involve work beyond
+      the scope of this demo: desugaring function hoisting and
+      decorator application.
+    </p>
+
+    <p>
+      TODO: call to action with insinuation that powerful people don't want
+      to COMEHERE
+    </p>
   </body>
 </html>

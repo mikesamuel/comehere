@@ -2,3 +2,30 @@
 #console-output .warn { background-color: #FCF3CF }
 #console-output .error { background-color: #F5B7B1 }
 #console-output .value { background-color: #FCCFFC }
+
+select#block-choice > option[value="0"] { font-style: italic }
+
+table.example-display > tbody > tr > td {
+  max-width: 40em;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  border: 1px dotted black;
+}
+
+table.example-display td.left { position: relative }
+table.example-display td.right { max-height: 10ex }
+
+button.copy-button {
+  position: absolute;
+  right: 5px;
+  top: 5px;
+}
+
+body, table {
+  font-variant-numeric: slashed-zero;
+}
+
+body {
+  font-family: SFMono-Regular, SF Mono, Menlo, Cascadia Mono, Consolas, Liberation Mono, monospace;
+  font-size: 14pt;
+}

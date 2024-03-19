@@ -13,9 +13,10 @@
   "scripts": {
     "help": "echo 'test:    runs tests\nbuild:   prepares HTML and friends under dist/\nserve:   populates dist and starts a web-server for interactive testing\nclean:   removes generated files and parcel cache\npublish: sets up a commit to the gh-pages branch with updates to HTML/CSS/JS'",
     "test": "mocha --recursive test",
-    "build": "parcel build --public-url '/comehere'",
-    "serve": "npx parcel index.html",
-    "clean": "rm -rf dist/ .parcel-cache/",
+    "build": "npm run build_includes && parcel build --public-url '/comehere'",
+    "build_includes": "python3 scripts/translate_examples.py",
+    "serve": "npm run build_includes && npx parcel index.html",
+    "clean": "rm -rf dist/ .parcel-cache/ .html-includes/",
     "publish": "npm run clean && npm run build && ./scripts/publish-dist.sh"
   },
   "repository": {
@@ -46,6 +47,7 @@
     "esm": "^3.2.25",
     "mocha": "^10.3.0",
     "parcel": "^2.12.0",
+    "posthtml-include": "^2.0.1",
     "process": "^0.11.10"
   }
 }
