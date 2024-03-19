@@ -284,6 +284,18 @@ describe('comehere', () => {
             }
             `,
     }));
+
+    it('nested_dollar_var_assignments', () => transformTest({
+      code: strip12`
+            export let x = $$a = ($$b = f()) + g();
+            `,
+      want: strip12`
+            let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
+            const $$a = ["undefined", void 0],
+              $$b = ["undefined", void 0];
+            export let x = ($$a[0] = "($$b = f()) + g() =", $$a[1] = ($$b[0] = "f() =", $$b[1] = f()) + g());
+            `, //                      ^^^^^^^^^^^^^^^^ Sampled BEFORE expanding `$$b = ...`
+    }));
   });
 
   describe('transform COMEHERE', () => {
