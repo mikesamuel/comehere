@@ -20,6 +20,9 @@ button.copy-button {
   right: 5px;
   top: 5px;
 }
+button.copy-button, button#play-button {
+  font-size: 150%;
+}
 
 body, table {
   font-variant-numeric: slashed-zero;
