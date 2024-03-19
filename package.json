@@ -13,9 +13,9 @@
   "scripts": {
     "help": "echo 'test:    runs tests\nbuild:   prepares HTML and friends under dist/\nserve:   populates dist and starts a web-server for interactive testing\nclean:   removes generated files and parcel cache\npublish: sets up a commit to the gh-pages branch with updates to HTML/CSS/JS'",
     "test": "mocha --recursive test",
-    "build": "npm run build_includes && parcel build --public-url '/comehere'",
+    "build": "npm run build_includes && parcel build --public-url=/comehere",
     "build_includes": "python3 scripts/translate_examples.py",
-    "serve": "npm run build_includes && npx parcel index.html",
+    "serve": "npm run build_includes && npx parcel serve --public-url=/comehere index.html",
     "clean": "rm -rf dist/ .parcel-cache/ .html-includes/",
     "publish": "npm run clean && npm run build && ./scripts/publish-dist.sh"
   },
