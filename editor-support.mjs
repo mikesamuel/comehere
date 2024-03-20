@@ -176,19 +176,8 @@ let originalConsole = globalThis.console;
 
   function emit(style, argsArray) {
     let box = document.createElement('div');
-    for (let i = 0, n = argsArray.length; i < n; ++i) {
-      if (i) {
-        let spacer = document.createElement('span');
-        spacer.textContent = ' ';
-        spacer.className = 'spacer';
-        box.appendChild(spacer);
-      }
-      let span = document.createElement('span');
-      box.appendChild(span);
-      let value = argsArray[i];
-      span.className = (typeof value === 'string')
-        ? `text`
-        : `value value-${typeof value}`;
+    let startsLine = true; // Suppress spaces before next value.
+    for (let value of argsArray) {
       let text;
       switch (typeof value) {
         case 'string': text = value; break;
@@ -203,7 +192,20 @@ let originalConsole = globalThis.console;
           break;
         default: text = `${value}`; break;
       }
+      if (!text) { continue }
+      if (!startsLine) {
+        let spacer = document.createElement('span');
+        spacer.textContent = ' ';
+        spacer.className = 'spacer';
+        box.appendChild(spacer);
+      }
+      let span = document.createElement('span');
+      box.appendChild(span);
+      span.className = (typeof value === 'string')
+        ? `text`
+        : `value value-${typeof value}`;
       span.textContent = text;
+      startsLine = /[\r\n]$/.test(text);
     }
     box.className = style;
     box.style.marginLeft = `${indent}em`;
