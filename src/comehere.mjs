@@ -386,6 +386,7 @@ function extractComeHereBlocks(
         // Deconstruct initializersNode to [dotted-path, right-hand-side] pairs
         let initializers = [];
         let description = null;
+        let goodyBagId = null;
         {
           let it = (types.isSequenceExpression(initializersNode))
               ? initializersNode.expressions
@@ -396,15 +397,30 @@ function extractComeHereBlocks(
             it.splice(0, 1);
           }
 
+          // `COMEHERE: with() { ... }` is illegal syntax.
+          // `COMEHERE: with (_) { ... }` has zero initializers.
+          if (it.length) {
+            let first = it[0];
+            if (types.isIdentifier(first) && first.name === '_') {
+              it.splice(0, 1);
+            }
+          }
+
+          if (it.length > 0) {
+            let last = it[it.length - 1];
+            if (types.isIdentifier(last)) {
+              goodyBagId = last;
+              it.splice(-1);
+            }
+          }
+
           initializer_loop:
           for (let initializer of it) {
-            // `COMEHERE: with (_) { ... }` has zero initializers.
-            if (types.isIdentifier(initializer) && initializer.name === '_') { continue }
             // Warn on malformed initializers
-            if (!(types.isAssignmentExpression(initializer) || initializer.operator != '=')) {
+            if (!types.isAssignmentExpression(initializer) || initializer.operator !== '=') {
               let { code } = generate(initializer);
               console.error(`COMEHERE: expected assignment but got \`${code}\`.`);
-              continue initializer_loop;
+              continue;
             }
             let { left, right } = initializer;
             let parts = [];
@@ -431,6 +447,41 @@ function extractComeHereBlocks(
           }
         }
 
+        if (goodyBagId) {
+          // Inject a local declaration in the context of the body.
+          let goodyBagDeclaration = types.variableDeclaration(
+            'const',
+            [
+              types.variableDeclarator(
+                goodyBagId,
+                // globalThis.debugHooks?.getGoodies?.(description) || {}
+                types.logicalExpression(
+                  '||',
+                  types.optionalCallExpression(
+                    types.memberExpression(
+                      types.memberExpression(
+                        types.identifier('globalThis'),
+                        types.identifier('debugHooks'),
+                        false, // computed
+                        false, // null-safe
+                      ),
+                      types.identifier('getGoodies'),
+                      false,
+                      true,
+                    ),
+                    [
+                      types.stringLiteral(description || 'COMEHERE'),
+                    ],
+                    true, // optional
+                  ),
+                  types.objectExpression([]),
+                ),
+              )
+            ],
+          );
+          startOfBody.insertBefore(goodyBagDeclaration);
+        }
+
         extracted.push(new ComeHereBlock(description, seekingValue, parentPath, initializers));
       }
     }
@@ -446,6 +497,7 @@ class ComeHereBlock {
   #seekingValue;
   #path;
   #initializers;
+  #goodyBag;
 
   /**
    * A textual description or null if unavailable.

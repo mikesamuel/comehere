@@ -8,6 +8,7 @@ import {indentWithTab} from "@codemirror/commands";
 import {javascript} from "@codemirror/lang-javascript";
 
 import * as comehere from './src/comehere.mjs';
+import * as updoc from './src/updoc.mjs';
 
 const sampleInput = `
 // Computes an equation given numbers from HTML <input>s.
@@ -244,8 +245,18 @@ function getWhichSeeking(meta) {
   return +document.querySelector('#block-choice').value || 0;
 }
 
+// Called to get a goody bag for the last & optional pattern in the COMEHERE block's parenthetical.
+function getGoodies(seekName) {
+  return {
+    testHarness: {
+      updocTest(...rest) { return updoc.runUpdocTest(seekName || "unnamed-test", ...rest) }
+    }
+  }
+}
+
 globalThis.debugHooks = {
   getWhichSeeking,
+  getGoodies,
 };
 
 function runCurrentTranslation() {
