@@ -278,7 +278,7 @@ describe('comehere', () => {
               const $$el = ["undefined", void 0];
               f(($$el[0] = "elements[i] =", $$el[1] = elements[i]), {
                 get last() {
-                  return $$el[0] = "elements[($$i[0] = \\"i - 1 =\\", $$i[1] = i - 1)] =", $$el[1] = elements[($$i[0] = "i - 1 =", $$i[1] = i - 1)];
+                  return $$el[0] = "elements[$$i[0] = \\"i - 1 =\\", $$i[1] = i - 1] =", $$el[1] = elements[$$i[0] = "i - 1 =", $$i[1] = i - 1];
                 }
               });
             }
