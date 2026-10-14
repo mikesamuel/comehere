@@ -13,7 +13,7 @@
     <p>
       This showcases a syntactic feature that simplifies both live programming and
       a robust
-      <span style="border:1px dotted #000;display:inline-block">investigate → fix → regression test</span> developer
+      <span style="border:1px dotted #000;display:inline-block">investigate → fix → guard (against regressions)</span> developer
       flow by allowing mixing non-production live/test code into production contexts
       where it can refer to encapsulated implementation details by name, without
       affecting the semantics of code in production.
@@ -50,7 +50,7 @@
       </tr>
     </table>
 
-    <script type=module src=/comehere/comehere.b23b59cb.js></script>
+    <script type=module src=/comehere/comehere.bbd6b63b.js></script>
 
     <p>
       On the left you can see a sample program that uses <big><code>COMEHERE:with</code></big>
@@ -67,7 +67,7 @@
 
     <ul>
       <li>There's a syntactic marker.  This is placeholder syntax
-        that let's us integrate the proposal into existing toolchains.
+        that lets us integrate the proposal into existing toolchains.
       <li>If there's a quoted string right after the open parenthesis,
         it's a <i>description</i>.  It's optional but providing it helps
         tools like the developer console make it easy to pick the
@@ -92,10 +92,12 @@
     </p>
 
     <p>
-      <i>COMEHERE</i> is inspired by the <a href=https://esolangs.org/wiki/ComeFrom2>Come From</a>
-      esoteric language which jokingly advanced the idea that transfers of control could
-      be specified, not in the context from which control transferred like a regular
-      instruction, but in the context <i>to which</i> control transferred.
+      <big><code>COMEHERE</code></big> is inspired by the
+      <a href=https://esolangs.org/wiki/ComeFrom2>Come From</a>
+      esoteric language which jokingly advanced the idea that
+      transfers of control could be specified, not in the context from
+      which control transfers like a regular instruction, but in the
+      context <i>to which</i> control transfers.
     </p>
 
     <p>
@@ -105,17 +107,6 @@
       when <code>seeking_0</code> is <code>1</code>, it'll call
       the containing function, and within it, will log some
       information about intermediate values.
-    </p>
-
-    <p>
-      <a href=https://link.springer.com/chapter/10.1007/BFB0053381><i>Aspect-Oriented Programming (AOP)</i></a>
-      also allows for balancing separate concerns by transforming code
-      at strategic locations, and has been jokingly described as a formaliztion
-      of <i>Come From</i>.  AOP focuses on assembling production code from
-      multiple separately specified and maintained aspects.  This work
-      differs in that it focuses on preserving the semantics of production
-      code, and allowing separate runs of the same program to work towards
-      different non-production goals.
     </p>
 
     <p>
@@ -129,16 +120,26 @@
     </p>
 
     <p>
-      Caveat: in some programming languages, the semantics of branch
-      condition expressions affect whether later expressions are
-      allowed via type predicate expressions.  For example, in
-      TypeScript like <big><code>if (typeof s === 'string') { f(s); }</code></big>,
-      the call to <code>f(s)</code> might only be well-typed because
-      the type checker knows that <code>s</code> refers to a string
-      value.  Adding extra conditions under which that condition is
-      true could cause expressions to fail to type check that
-      otherwise would.
+      <a href=https://link.springer.com/chapter/10.1007/BFB0053381><i>Aspect-Oriented Programming (AOP)</i></a>
+      also allows for balancing separate concerns by transforming code
+      at strategic locations, and has been jokingly described as a formalization
+      of <i>Come From</i>.  AOP focuses on assembling production code from
+      multiple separately specified and maintained aspects.  This work
+      differs in that it focuses on preserving the semantics of production
+      code, and allowing separate runs of the same program to work towards
+      different non-production goals.
     </p>
+
+    <h2>Rewriting Rules</h2>
+
+    <p>
+      First up, explaining the rewrite rules by example.
+      Then some caveats regarding that rewriting.
+      And those are followed with a discussion of use cases across
+      the extended live-programming investigate → fix → guard flow.
+    </p>
+
+    <h3>If</h3>
 
     <p>
       “Driving control” means making branching choices
@@ -171,7 +172,8 @@
 <span class=p>}</span>
 </pre></div>
 <td class=right width=50%><div class=highlight style=height:18ex><pre><span></span><span class=kd>let</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nb>globalThis</span><span class=p>.</span><span class=nx>debugHooks</span><span class=p>.</span><span class=nx>getWhichSeeking</span><span class=p>(</span><span class=k>import</span><span class=p>.</span><span class=nx>meta</span><span class=p>)</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
-<span class=k>export</span><span class=w> </span><span class=kd>let</span><span class=w> </span><span class=nx>x</span><span class=p>;</span>
+<span class=k>export</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=p>};</span>
+<span class=kd>let</span><span class=w> </span><span class=nx>x</span><span class=p>;</span>
 <span class=k>if</span><span class=w> </span><span class=p>((</span><span class=nb>Math</span><span class=p>.</span><span class=nx>random</span><span class=p>()</span><span class=w> </span><span class=o>&gt;</span><span class=w> </span><span class=mf>0.5</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>!==</span><span class=w> </span><span class=mf>2</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
 <span class=w>  </span><span class=kd>let</span><span class=w> </span><span class=nx>n</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>6</span><span class=p>;</span>
 <span class=w>  </span><span class=nx>n</span><span class=w> </span><span class=o>*=</span><span class=w> </span><span class=mf>7</span><span class=p>;</span>
@@ -196,7 +198,7 @@
       Similar code translation tricks drive control into other constructs …
     </p>
 
-    <p>Loops bodies:</p>
+    <h3>Loop bodies</h3>
 
     <table class=example-display><tr valign=top><td class=left width=50%><div class=highlight><pre><span></span><span class=c1>// Can drive into a loop by instrumenting the</span>
 <span class=c1>// condition/iterator.</span>
@@ -219,11 +221,17 @@
 <span class=kd>function</span><span class=w> </span><span class=nx>f</span><span class=p>(</span><span class=nx>n</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
 <span class=w>  </span><span class=kd>const</span><span class=w> </span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>activeFns_0</span><span class=w> </span><span class=o>&gt;&gt;</span><span class=w> </span><span class=mi>0n</span><span class=w> </span><span class=o>&amp;</span><span class=w> </span><span class=mi>1n</span><span class=p>;</span>
 <span class=w>  </span><span class=nx>activeFns_0</span><span class=w> </span><span class=o>&amp;=</span><span class=w> </span><span class=o>~</span><span class=p>(</span><span class=mi>1n</span><span class=w> </span><span class=o>&lt;&lt;</span><span class=w> </span><span class=mi>0n</span><span class=p>);</span>
-<span class=w>  </span><span class=k>for</span><span class=w> </span><span class=p>(</span><span class=kd>let</span><span class=w> </span><span class=nx>i</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span><span class=w> </span><span class=nx>i</span><span class=w> </span><span class=o>&lt;</span><span class=w> </span><span class=nx>n</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>;</span><span class=w> </span><span class=o>++</span><span class=nx>i</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
-<span class=w>    </span><span class=kd>let</span><span class=w> </span><span class=nx>square</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>i</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>i</span><span class=p>;</span>
-<span class=w>    </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
-<span class=w>      </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
-<span class=w>      </span><span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(</span><span class=s1>'square'</span><span class=p>,</span><span class=w> </span><span class=nx>square</span><span class=p>);</span>
+<span class=w>  </span><span class=p>{</span>
+<span class=w>    </span><span class=kd>let</span><span class=w> </span><span class=nx>i</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
+<span class=w>    </span><span class=k>while</span><span class=w> </span><span class=p>(</span><span class=nx>i</span><span class=w> </span><span class=o>&lt;</span><span class=w> </span><span class=nx>n</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>      </span><span class=p>{</span>
+<span class=w>        </span><span class=kd>let</span><span class=w> </span><span class=nx>square</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>i</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>i</span><span class=p>;</span>
+<span class=w>        </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>          </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
+<span class=w>          </span><span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(</span><span class=s1>'square'</span><span class=p>,</span><span class=w> </span><span class=nx>square</span><span class=p>);</span>
+<span class=w>        </span><span class=p>}</span>
+<span class=w>      </span><span class=p>}</span>
+<span class=w>      </span><span class=o>++</span><span class=nx>i</span><span class=p>;</span>
 <span class=w>    </span><span class=p>}</span>
 <span class=w>  </span><span class=p>}</span>
 <span class=p>}</span>
@@ -240,7 +248,7 @@
 </pre></div>
 </table>
 
-    <p>Switch cases:</p>
+    <h3>Switch cases</h3>
 
     <table class=example-display><tr valign=top><td class=left width=50%><div class=highlight><pre><span></span><span class=c1>// Can drive into a switch block by synthesizing</span>
 <span class=c1>// fall-through cases using sentinel values.</span>
@@ -279,8 +287,8 @@
 <span class=w>  </span><span class=k>case</span><span class=w> </span><span class=s1>'a'</span><span class=o>:</span>
 <span class=w>    </span><span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(</span><span class=s1>'A'</span><span class=p>);</span>
 <span class=w>    </span><span class=k>break</span><span class=p>;</span>
-<span class=w>  </span><span class=k>case</span><span class=w> </span><span class=s1>'e'</span><span class=o>:</span>
 <span class=w>  </span><span class=k>case</span><span class=w> </span><span class=nx>caseToken_0</span><span class=o>:</span>
+<span class=w>  </span><span class=k>case</span><span class=w> </span><span class=s1>'e'</span><span class=o>:</span>
 <span class=w>    </span><span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(</span><span class=s1>'E'</span><span class=p>);</span>
 <span class=w>    </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
 <span class=w>      </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
@@ -300,7 +308,7 @@
 </pre></div>
 </table>
 
-    <p>Catch blocks inside try statements:</p>
+    <h3>Catch blocks inside try statements</h3>
 
     <table class=example-display><tr valign=top><td class=left width=50%><div class=highlight><pre><span></span><span class=c1>// Can drive into a catch block by throwing when</span>
 <span class=c1>// seeking has the required value.</span>
@@ -317,9 +325,6 @@
 <span class=p>}</span>
 </pre></div>
 <td class=right width=50%><div class=highlight style=height:14ex><pre><span></span><span class=kd>let</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nb>globalThis</span><span class=p>.</span><span class=nx>debugHooks</span><span class=p>.</span><span class=nx>getWhichSeeking</span><span class=p>(</span><span class=k>import</span><span class=p>.</span><span class=nx>meta</span><span class=p>)</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
-<span class=c1>// Can drive into a catch block by throwing when</span>
-<span class=c1>// seeking has the required value.</span>
-
 <span class=k>try</span><span class=w> </span><span class=p>{</span>
 <span class=w>  </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
 <span class=w>    </span><span class=k>throw</span><span class=w> </span><span class=ow>new</span><span class=w> </span><span class=ne>Error</span><span class=p>(</span><span class=s1>'Hi'</span><span class=p>);</span>
@@ -333,7 +338,7 @@
 </pre></div>
 </table>
 
-    <p>Members in classes:</p>
+    <h3>Members in classes</h3>
 
     <table class=example-display><tr valign=top><td class=left width=50%><div class=highlight><pre><span></span><span class=c1>// Driving into a class member requires a `this` value.</span>
 
@@ -344,7 +349,7 @@
 
 <span class=w>  </span><span class=nx>get</span><span class=w> </span><span class=nx>x</span><span class=p>()</span><span class=w> </span><span class=p>{</span>
 <span class=w>    </span><span class=c1>// One can specify inputs to the constructor in which</span>
-<span class=w>    </span><span class=c1>// case it synthesizes an insance.</span>
+<span class=w>    </span><span class=c1>// case it synthesizes an instance.</span>
 <span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>$$0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=k>this</span><span class=p>.</span><span class=nx>_x</span><span class=p>;</span>
 <span class=w>    </span><span class=nx>COMEHERE</span><span class=o>:</span><span class=kd>with</span><span class=w> </span><span class=p>(</span><span class=s1>'getter for x'</span><span class=p>,</span><span class=w> </span><span class=nx>C</span><span class=p>.</span><span class=k>this</span><span class=p>.</span><span class=nx>x</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>42</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
 <span class=w>      </span><span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(...</span><span class=nx>$$0</span><span class=p>);</span>
@@ -379,7 +384,7 @@
 <span class=w>      </span><span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(...</span><span class=nx>$$0</span><span class=p>);</span>
 <span class=w>    </span><span class=p>}</span>
 <span class=w>    </span><span class=c1>// One can specify inputs to the constructor in which</span>
-<span class=w>    </span><span class=c1>// case it synthesizes an insance.</span>
+<span class=w>    </span><span class=c1>// case it synthesizes an instance.</span>
 <span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>functionReturn_0</span><span class=p>;</span>
 <span class=w>  </span><span class=p>}</span>
 <span class=w>  </span><span class=nx>method</span><span class=p>(</span><span class=nx>a</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
@@ -417,6 +422,8 @@
 <span class=p>}</span>
 </pre></div>
 </table>
+
+    <h3>Short circuiting logical expressions</h3>
 
     <p>
       Short-circuiting expressions blur the
@@ -469,18 +476,29 @@
 </table>
 
     <p>
-      JavaScript has null-safe dispatch.  <big><code>subject?.verb(args)</code></big>
-      only evaluates <code>args</code> when <code>subject</code> is not nullish,
-      so care must be taken when it is to still allow transfer of control forward.
-      TODO: implement this via transform to something like <pre>        ((subject0, key0) =&gt; {
-          if (subject0 == null &amp;&amp; SEEKING_PREDICATE) {
-            subject0 = { [key0]() {} };
-          }
-          return subject0?[key](args);
-        })(subject, 'verb')</pre>
-      where the key is captured so this works for both literal
-      method names and computed keys.
-    <p></p>
+      JavaScript has added
+      <a href=https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining>optional dispatch</a>.
+
+      <big><code>subject?.verb(args)</code></big> only evaluates
+      <code>args</code> when <code>subject</code> is not
+      nullish, so care must be taken when it is nullish to still allow
+      transfer of control into arguments.
+
+      TODO: handle optional member lookup and calls by desugaring to
+      something like the below where the key is captured so this works
+      for both literal method names and computed keys.
+    </p>
+
+    <pre>      // subhect?.verb(args)
+      ((subject0, key0) =&gt; {
+        if (subject0 == null &amp;&amp; SEEKING_PREDICATE) {
+          subject0 = { [key0]() {} };
+        }
+        return subject0?[key](args);
+      })(subject, 'verb')
+    </pre>
+
+    <h3>Reentrancy</h3>
 
     <p>
       Below is a tricky example. A recursive function that recurses
@@ -513,19 +531,22 @@
 <span class=c1>// block is seen, n is actually 2.</span>
 
 <span class=k>export</span><span class=w> </span><span class=kd>function</span><span class=w> </span><span class=nx>fibonacci</span><span class=p>(</span><span class=nx>n</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
-<span class=w>  </span><span class=kd>const</span><span class=w> </span><span class=nx>$$0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=p>[</span><span class=s2>"undefined"</span><span class=p>,</span><span class=w> </span><span class=ow>void</span><span class=w> </span><span class=mf>0</span><span class=p>],</span>
-<span class=w>    </span><span class=nx>$$1</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=p>[</span><span class=s2>"undefined"</span><span class=p>,</span><span class=w> </span><span class=ow>void</span><span class=w> </span><span class=mf>0</span><span class=p>];</span>
+<span class=w>  </span><span class=kd>let</span><span class=w> </span><span class=nx>returned_0</span><span class=p>,</span><span class=w> </span><span class=nx>functionReturn_0</span><span class=p>;</span>
 <span class=w>  </span><span class=kd>const</span><span class=w> </span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>activeFns_0</span><span class=w> </span><span class=o>&gt;&gt;</span><span class=w> </span><span class=mi>0n</span><span class=w> </span><span class=o>&amp;</span><span class=w> </span><span class=mi>1n</span><span class=p>;</span>
 <span class=w>  </span><span class=nx>activeFns_0</span><span class=w> </span><span class=o>&amp;=</span><span class=w> </span><span class=o>~</span><span class=p>(</span><span class=mi>1n</span><span class=w> </span><span class=o>&lt;&lt;</span><span class=w> </span><span class=mi>0n</span><span class=p>);</span>
-<span class=w>  </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=o>!</span><span class=p>(</span><span class=nx>n</span><span class=w> </span><span class=o>&gt;=</span><span class=w> </span><span class=mf>2</span><span class=p>))</span><span class=w> </span><span class=p>{</span>
-<span class=w>    </span><span class=k>return</span><span class=w> </span><span class=mf>1</span><span class=p>;</span>
+<span class=w>  </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=o>!</span><span class=p>(</span><span class=nx>n</span><span class=w> </span><span class=o>&gt;=</span><span class=w> </span><span class=mf>2</span><span class=p>)</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=p>(</span><span class=o>!</span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>!==</span><span class=w> </span><span class=mf>1</span><span class=p>))</span><span class=w> </span><span class=p>{</span>
+<span class=w>    </span><span class=nx>returned_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>1</span><span class=p>;</span>
+<span class=w>  </span><span class=p>}</span><span class=w> </span><span class=k>else</span><span class=w> </span><span class=p>{</span>
+<span class=w>    </span><span class=kd>const</span><span class=w> </span><span class=nx>$$0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=p>[</span><span class=s2>"undefined"</span><span class=p>,</span><span class=w> </span><span class=ow>void</span><span class=w> </span><span class=mf>0</span><span class=p>],</span>
+<span class=w>      </span><span class=nx>$$1</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=p>[</span><span class=s2>"undefined"</span><span class=p>,</span><span class=w> </span><span class=ow>void</span><span class=w> </span><span class=mf>0</span><span class=p>];</span>
+<span class=w>    </span><span class=nx>functionReturn_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=p>(</span><span class=nx>$$0</span><span class=p>[</span><span class=mf>0</span><span class=p>]</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s2>"fibonacci(n - 2) ="</span><span class=p>,</span><span class=w> </span><span class=nx>$$0</span><span class=p>[</span><span class=mf>1</span><span class=p>]</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>fibonacci</span><span class=p>(</span><span class=nx>n</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=mf>2</span><span class=p>))</span><span class=w> </span><span class=o>+</span><span class=w> </span><span class=p>(</span><span class=nx>$$1</span><span class=p>[</span><span class=mf>0</span><span class=p>]</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s2>"fibonacci(n - 1) ="</span><span class=p>,</span><span class=w> </span><span class=nx>$$1</span><span class=p>[</span><span class=mf>1</span><span class=p>]</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>fibonacci</span><span class=p>(</span><span class=nx>n</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=mf>1</span><span class=p>));</span>
+<span class=w>    </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>      </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
+<span class=w>      </span><span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(...</span><span class=nx>$$0</span><span class=p>,</span><span class=w> </span><span class=s1>','</span><span class=p>,</span><span class=w> </span><span class=p>...</span><span class=nx>$$1</span><span class=p>,</span><span class=w> </span><span class=s1>'-&gt;'</span><span class=p>,</span><span class=w> </span><span class=nx>functionReturn_0</span><span class=p>);</span>
+<span class=w>    </span><span class=p>}</span>
+<span class=w>    </span><span class=nx>returned_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>functionReturn_0</span><span class=p>;</span>
 <span class=w>  </span><span class=p>}</span>
-<span class=w>  </span><span class=kd>let</span><span class=w> </span><span class=nx>functionReturn_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=p>(</span><span class=nx>$$0</span><span class=p>[</span><span class=mf>0</span><span class=p>]</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s2>"fibonacci(n - 2) ="</span><span class=p>,</span><span class=w> </span><span class=nx>$$0</span><span class=p>[</span><span class=mf>1</span><span class=p>]</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>fibonacci</span><span class=p>(</span><span class=nx>n</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=mf>2</span><span class=p>))</span><span class=w> </span><span class=o>+</span><span class=w> </span><span class=p>(</span><span class=nx>$$1</span><span class=p>[</span><span class=mf>0</span><span class=p>]</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=s2>"fibonacci(n - 1) ="</span><span class=p>,</span><span class=w> </span><span class=nx>$$1</span><span class=p>[</span><span class=mf>1</span><span class=p>]</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>fibonacci</span><span class=p>(</span><span class=nx>n</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=mf>1</span><span class=p>));</span>
-<span class=w>  </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
-<span class=w>    </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
-<span class=w>    </span><span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(...</span><span class=nx>$$0</span><span class=p>,</span><span class=w> </span><span class=s1>','</span><span class=p>,</span><span class=w> </span><span class=p>...</span><span class=nx>$$1</span><span class=p>,</span><span class=w> </span><span class=s1>'-&gt;'</span><span class=p>,</span><span class=w> </span><span class=nx>functionReturn_0</span><span class=p>);</span>
-<span class=w>  </span><span class=p>}</span>
-<span class=w>  </span><span class=k>return</span><span class=w> </span><span class=nx>functionReturn_0</span><span class=p>;</span>
+<span class=w>  </span><span class=k>return</span><span class=w> </span><span class=nx>returned_0</span><span class=p>;</span>
 <span class=p>}</span>
 <span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
 <span class=w>  </span><span class=k>try</span><span class=w> </span><span class=p>{</span>
@@ -540,6 +561,8 @@
 </pre></div>
 </table>
 
+    <h3>Postconditions</h3>
+
     <p>
       Another thing to note is that, when one or more
       <big><code>COMEHERE</code></big> blocks occur right after a
@@ -550,63 +573,220 @@
 
     <p>
       Asynchronous <big><code>await</code></big> calls pause execution,
-      and can be a source of re-entrancy.
+      and can be a source of re-entrancy.  Below is an example of an
+      <big><code>async</code></big> function that reenters itself while
+      paused (modulo <code>setTimeout</code> nondeterminism).
+    </p>
 
-      <pre>        let spawnedSelf = false;
+    <pre>    async function f(desc, promise, recursed = false) {
+      if (!recursed) {
+        setTimeout(
+          () =&gt; { f("reentrant", Promise.resolve(234), true) },
+          0
+        );
+      }
 
-        async function f(promise, awaitIt) {
-          if (!spawnedSelf) {
-            f(Promise.resolve(234), false);
-          }
-
-          if (awaitIt) {
-            await promise;
-          }
-
-          COMEHERE:with(promise = (async () =&gt; 123)(), skipAwait = false) {
-            console.log(await promise);  // Should log 123
-          }
-        }
-        // Any synthesized call inserted here would
-        // pass in Promise.resolve(123) but the reentrancy
-        // due to spanwedSelf would cause 234 to be logged instead,
-        // if we did not stash the seeking state prior to await and
-        // restore it after.
-      </pre>
-
-      TODO: implement await handling via a transform like
-      <big><code>await x</code></big> rewrites to <pre>        STORE_SEEKING_STATE(),
-        await (x.finally(() =&gt; RESTORE_SEEKING_STATE()))
-        // TODO: .finally's semantics depend on mutable prototypes
-        // Is there a reliable mechanism that doesn't move the await
-        // call out of the surrounding async function body and doesn't
-        // require extracting an expressions into temporaries to ?
-      </pre>
-
-      Adding extra function arguments to pass seeking state would solve this
-      problem, and ease adapting this scheme to languages that have
-      reentrancy due to threading, but that causes its own problems: notably
-      JavaScript allows calls with more arguments than expected, and runtime
-      introspection can expose information about function signatures.
-      If the seeking information captured which thread was seeking, or was
-      thread-local, and coroutine based work stealing optimizations guaranteed
-      that awake would happen in the same thread, then that would address this
-      problem.
-    <p></p>
+      let r = await promise;
+      COMEHERE:with(
+        desc = "synthesized",
+        promise = new Promise(
+          (resolve) =&gt; { setTimeout(() =&gt; resolve(123), 100); }
+        )
+      ) {
+        // should log "synthesized result is 123", not "reentrant result is 234"
+        console.log(desc, "result is", r);
+      }
+    }
+    </pre>
 
     <p>
-      TODO: decorator that recurses before call corner-case discussion.
+      TODO: our <big><code>isActiveCall</code></big> guards prevent
+      observing the wrong result due to reentrancy, but the
+      <big><code>try/finally</code></big> around the synthesized call
+      probably needs to <big><code>await</code></big> in
+      the <big><code>try</code></big> when the callee is async or else
+      the finally will trigger before the COMEHERE is reached.
+      In the case where the callee is an iterator, we might want to close
+      it.  Maybe a try body helper could switch on the
+      function species at runtime, instead of trying to generate statements
+      differently for each species.
+    </p>
+
+    <p>
+      JavaScript's proposed
+      <a href=https://github.com/tc39/proposal-decorators>function decorators</a>
+      might require some special handling.
       Decorators, unlike function proxies, intercept simple calls by name.
       A decorator that wraps a function in a way that recurses with different
       arguments before invoking with the arguments would observe activeFns
       in an unintentional state.
-
-      There are solutions to this problem but they involve work beyond
-      the scope of this demo: desugaring function hoisting and
+      Depending on how decorators end up being incorporated in the language,
+      supporting them might involve desugaring function hoisting and
       decorator application.
     </p>
 
-    <hr>
+    <h2>Caveats</h2>
+
+    <h3>Making unrepresentable program states representable</h3>
+
+    <table class=example-display><tr valign=top><td class=left width=50%><div class=highlight><pre><span></span><span class=k>export</span><span class=w> </span><span class=kd>function</span><span class=w> </span><span class=nx>isWholePositiveAndOdd</span><span class=p>(</span><span class=nx>x</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>  </span><span class=c1>// Avoid TOCTOU problems with inputs like</span>
+<span class=w>  </span><span class=c1>// ({ b: false, valueOf() { return (this.b = !this.b) ? 1 : -1 } })</span>
+<span class=w>  </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=ow>typeof</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=o>!==</span><span class=w> </span><span class=s1>'number'</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=k>throw</span><span class=w> </span><span class=ow>new</span><span class=w> </span><span class=ne>TypeError</span><span class=p>(</span><span class=nx>x</span><span class=p>);</span><span class=w> </span><span class=p>}</span>
+<span class=w>  </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>x</span><span class=w> </span><span class=o>&lt;</span><span class=w> </span><span class=mf>0</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w> </span><span class=k>return</span><span class=w> </span><span class=kc>false</span><span class=p>;</span><span class=w> </span><span class=p>}</span>
+
+<span class=w>  </span><span class=kd>function</span><span class=w> </span><span class=nx>isOdd</span><span class=p>(</span><span class=nx>x</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>    </span><span class=c1>// Use `%` because bitwise `&amp;` truncates fractions</span>
+<span class=w>    </span><span class=c1>// and shoehorns NaNs and infinities to signed 32b ints.</span>
+<span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=o>%</span><span class=w> </span><span class=mf>2</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>;</span>
+<span class=w>  </span><span class=p>}</span>
+
+<span class=w>  </span><span class=nx>COMEHERE</span><span class=o>:</span><span class=kd>with</span><span class=p>(</span><span class=s2>"testing isOdd"</span><span class=p>,</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>,</span><span class=w> </span><span class=nx>goodies</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>    </span><span class=kd>let</span><span class=w> </span><span class=p>{</span><span class=nx>testHarness</span><span class=o>:</span><span class=w> </span><span class=p>{</span><span class=nx>updocTest</span><span class=p>}}</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>goodies</span><span class=p>;</span>
+<span class=w>    </span><span class=nx>updocTest</span><span class=p>(</span>
+<span class=w>      </span><span class=sb>`</span>
+<span class=sb>      $ isOdd(0)</span>
+<span class=sb>      -&gt; false</span>
+<span class=sb>      $ isOdd(1)</span>
+<span class=sb>      -&gt; true</span>
+<span class=sb>      $ isOdd(-2)</span>
+<span class=sb>      -&gt; false</span>
+<span class=sb>      $ isOdd(-1)</span>
+<span class=sb>      -&gt; true</span>
+<span class=sb>      `</span><span class=p>,</span>
+<span class=w>      </span><span class=p>(</span><span class=nx>x</span><span class=p>)</span><span class=w> </span><span class=p>=&gt;</span><span class=w> </span><span class=nb>eval</span><span class=p>(</span><span class=nx>x</span><span class=p>),</span>
+<span class=w>    </span><span class=p>);</span>
+<span class=w>  </span><span class=p>}</span>
+
+<span class=w>  </span><span class=k>return</span><span class=w> </span><span class=nx>isOdd</span><span class=p>(</span><span class=nx>x</span><span class=p>);</span>
+<span class=p>}</span>
+</pre></div>
+<td class=right width=50%><div class=highlight style=height:32ex><pre><span></span><span class=kd>let</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nb>globalThis</span><span class=p>.</span><span class=nx>debugHooks</span><span class=p>.</span><span class=nx>getWhichSeeking</span><span class=p>(</span><span class=k>import</span><span class=p>.</span><span class=nx>meta</span><span class=p>)</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
+<span class=kd>let</span><span class=w> </span><span class=nx>activeFns_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mi>0n</span><span class=p>;</span>
+<span class=k>export</span><span class=w> </span><span class=kd>function</span><span class=w> </span><span class=nx>isWholePositiveAndOdd</span><span class=p>(</span><span class=nx>x</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>  </span><span class=kd>let</span><span class=w> </span><span class=nx>returned_0</span><span class=p>,</span><span class=w> </span><span class=nx>thrown_0</span><span class=p>,</span><span class=w> </span><span class=nx>isActiveCall_0</span><span class=p>;</span>
+<span class=w>  </span><span class=kd>function</span><span class=w> </span><span class=nx>isOdd</span><span class=p>(</span><span class=nx>x</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>    </span><span class=c1>// Use `%` because bitwise `&amp;` truncates fractions</span>
+<span class=w>    </span><span class=c1>// and shoehorns NaNs and infinities to signed 32b ints.</span>
+<span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=o>%</span><span class=w> </span><span class=mf>2</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>;</span>
+<span class=w>  </span><span class=p>}</span>
+<span class=w>  </span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>activeFns_0</span><span class=w> </span><span class=o>&gt;&gt;</span><span class=w> </span><span class=mi>0n</span><span class=w> </span><span class=o>&amp;</span><span class=w> </span><span class=mi>1n</span><span class=p>;</span>
+<span class=w>  </span><span class=nx>activeFns_0</span><span class=w> </span><span class=o>&amp;=</span><span class=w> </span><span class=o>~</span><span class=p>(</span><span class=mi>1n</span><span class=w> </span><span class=o>&lt;&lt;</span><span class=w> </span><span class=mi>0n</span><span class=p>);</span>
+<span class=w>  </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=ow>typeof</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=o>!==</span><span class=w> </span><span class=s1>'number'</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=p>(</span><span class=o>!</span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>!==</span><span class=w> </span><span class=mf>1</span><span class=p>))</span><span class=w> </span><span class=p>{</span>
+<span class=w>    </span><span class=nx>thrown_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=ow>new</span><span class=w> </span><span class=ne>TypeError</span><span class=p>(</span><span class=nx>x</span><span class=p>);</span>
+<span class=w>    </span><span class=k>throw</span><span class=w> </span><span class=nx>thrown_0</span><span class=p>;</span>
+<span class=w>  </span><span class=p>}</span><span class=w> </span><span class=k>else</span><span class=w> </span><span class=p>{</span>
+<span class=w>    </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>x</span><span class=w> </span><span class=o>&lt;</span><span class=w> </span><span class=mf>0</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=p>(</span><span class=o>!</span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>!==</span><span class=w> </span><span class=mf>1</span><span class=p>))</span><span class=w> </span><span class=p>{</span>
+<span class=w>      </span><span class=nx>returned_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=kc>false</span><span class=p>;</span>
+<span class=w>    </span><span class=p>}</span><span class=w> </span><span class=k>else</span><span class=w> </span><span class=p>{</span>
+<span class=w>      </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>isActiveCall_0</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>        </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
+<span class=w>        </span><span class=kd>const</span><span class=w> </span><span class=nx>goodies</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nb>globalThis</span><span class=p>.</span><span class=nx>debugHooks</span><span class=p>.</span><span class=nx>getGoodies</span><span class=o>?</span><span class=p>.(</span><span class=s2>"testing isOdd"</span><span class=p>)</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=p>{};</span>
+<span class=w>        </span><span class=kd>let</span><span class=w> </span><span class=p>{</span>
+<span class=w>          </span><span class=nx>testHarness</span><span class=o>:</span><span class=w> </span><span class=p>{</span>
+<span class=w>            </span><span class=nx>updocTest</span>
+<span class=w>          </span><span class=p>}</span>
+<span class=w>        </span><span class=p>}</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>goodies</span><span class=p>;</span>
+<span class=w>        </span><span class=nx>updocTest</span><span class=p>(</span><span class=sb>`</span>
+<span class=sb>      $ isOdd(0)</span>
+<span class=sb>      -&gt; false</span>
+<span class=sb>      $ isOdd(1)</span>
+<span class=sb>      -&gt; true</span>
+<span class=sb>      $ isOdd(-2)</span>
+<span class=sb>      -&gt; false</span>
+<span class=sb>      $ isOdd(-1)</span>
+<span class=sb>      -&gt; true</span>
+<span class=sb>      `</span><span class=p>,</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=p>=&gt;</span><span class=w> </span><span class=p>{</span>
+<span class=w>          </span><span class=k>return</span><span class=w> </span><span class=nb>eval</span><span class=p>(</span><span class=nx>x</span><span class=p>);</span>
+<span class=w>        </span><span class=p>});</span>
+<span class=w>      </span><span class=p>}</span>
+<span class=w>      </span><span class=nx>returned_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>isOdd</span><span class=p>(</span><span class=nx>x</span><span class=p>);</span>
+<span class=w>    </span><span class=p>}</span>
+<span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>returned_0</span><span class=p>;</span>
+<span class=w>  </span><span class=p>}</span>
+<span class=p>}</span>
+<span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
+<span class=w>  </span><span class=k>try</span><span class=w> </span><span class=p>{</span>
+<span class=w>    </span><span class=kd>const</span><span class=w> </span><span class=nx>callee_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>isWholePositiveAndOdd</span><span class=p>,</span>
+<span class=w>      </span><span class=nx>x</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
+<span class=w>    </span><span class=nx>activeFns_0</span><span class=w> </span><span class=o>|=</span><span class=w> </span><span class=mi>1n</span><span class=w> </span><span class=o>&lt;&lt;</span><span class=w> </span><span class=mi>0n</span><span class=p>;</span>
+<span class=w>    </span><span class=nx>callee_0</span><span class=p>(</span><span class=nx>x</span><span class=p>);</span>
+<span class=w>  </span><span class=p>}</span><span class=w> </span><span class=k>finally</span><span class=w> </span><span class=p>{</span>
+<span class=w>    </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
+<span class=w>  </span><span class=p>}</span>
+<span class=p>}</span>
+</pre></div>
+</table>
+
+    <p>
+      Modulus/remainder subtleties are a source of confusion,
+      but the <big><code>x &gt;= 0</code></big>
+      check means that neither <big><code>%</code></big> operand should
+      ever be negative.  Still, that <big><code>COMEHERE</code></big>
+      block can cause a call to that helper with an input that should
+      never reach it.
+    </p>
+
+    <p>
+      But to build <i>trustworthy</i> software components, those that can be
+      relied upon not to fail, we should rarely <i>trust</i>, in the sense
+      that we rely on a subcomponent not failing.
+      If <big><code>isOdd</code></big> works for negative inputs, it's more
+      trustworthy which might come in important if a future version of the
+      code relaxes some of those precondition checks.
+    </p>
+
+    <p>
+      This example introduces a testing affordance, discussed later in more
+      detail.  The idea is that the lines in the string like
+      <big><code>$ isOdd(0)</code></big> are executed in the context of
+      the nested helper function, so that code is testing it with inputs
+      that would not reach it in normal production use.
+    </p>
+
+
+    <h3>Changes to branch conditions</h3>
+
+    <p>
+      In some programming languages, the semantics of branch
+      condition expressions affect whether later expressions are
+      allowed via type predicate (e.g. Typed Racket's <a href=https://docs.racket-lang.org/ts-guide/occurrence-typing.html>occurrence typing</a> or TypeScript's <a href=https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates>narrowing predicates</a>).  For example, in
+      TypeScript like <big><code>if (typeof s === 'string') { f(s); }</code></big>,
+      the call to <big><code>f(s)</code></big> might only be well-typed because
+      the type checker knows that <big><code>s</code></big> refers to a string
+      value.
+    </p>
+
+    <p>
+      Adding extra conditions under which that condition is
+      true could cause expressions to fail to type check that
+      otherwise would.  In a language like TypeScript, where types
+      are erased and do not affect the semantics of dispatch, and
+      do not need to be sound for memory representation assumptions
+      to hold, one could just lie to the compiler, for example via a higher-order type predicate function that takes a type guard application and extra conditions and uses <code>as false</code> to logically union them but in a way that pretends to preserve the lower-order guard's postconditions.
+      Type checking and narrowing is important, but like encapsulation, relaxing it to allow program exploration and testing is good, and running programs in a separate optimistic and fault-tolerant interpreted runtime is always possible.
+    </p>
+
+    <h3>Mutable global state</h3>
+
+    <p>
+      Using mutable global variables to track COMEHERE seeking state
+      works in JavaScript because it is
+      <a href=https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model#job_queue_and_event_loop>event loop concurrent</a>,
+      but most other languages' runtimes are not.  Passing seeking state
+      via extra function arguments would strongly anchor seeking state
+      to a particular stack frame, and ease adapting this scheme to
+      languages that have reentrancy due to threading, but that causes
+      its own problems: notably JavaScript allows calls with more
+      arguments than the callee expects, and runtime introspection can
+      expose information about adapted function signatures.  If the
+      seeking information captured which thread was seeking, or was
+      thread-local, and thread-locals were robust agains optimizations
+      like coroutine work stealing, then that would address this
+      problem.
+    </p>
+
+    <h2>Visualizing Intermediates</h2>
 
     <p>
       We asked more than two veteran printf-debuggers, “if you could
@@ -669,7 +849,6 @@
 
 <span class=c1>// What if we want to know the value of an</span>
 <span class=c1>// intermediate expression like</span>
-
 <span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nb>Math</span><span class=p>.</span><span class=nx>random</span><span class=p>()</span><span class=w> </span><span class=o>&lt;</span><span class=w> </span><span class=mf>0.05</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
 <span class=w>  </span><span class=kd>let</span><span class=w> </span><span class=nx>n</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nb>Math</span><span class=p>.</span><span class=nx>pow</span><span class=p>(</span><span class=nx>a</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>b</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=w> </span><span class=o>/</span><span class=w> </span><span class=nx>d</span><span class=p>);</span>
 <span class=w>  </span><span class=c1>// We could type out the expression.</span>
@@ -694,8 +873,9 @@
 </table>
 
     <p>
-      And if the $$name variable is assigned along multiple paths,
-      that code reflects the last affecting intermediate expression.
+      And if the <big><code>$$name</code></big> variable is assigned
+      along multiple paths, that code reflects the last affecting
+      intermediate expression.
     </p>
 
     <table class=example-display><tr valign=top><td class=left width=50%><div class=highlight><pre><span></span><span class=kd>function</span><span class=w> </span><span class=nx>abs</span><span class=p>(</span><span class=nx>n</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
@@ -763,12 +943,39 @@
 </table>
 
     <p>
-      But wait, there's more! If we can super-charge <i>printf
+      This <big><code>$$</code></big> feature nice for reducing the
+      friction when visualizing program state, but it comes with risks.
+      Entangling the semantics of string-producing expressions with
+      lexical details of code risks making life harder for IDE plugin
+      developers who aim to provide semantics-preserving refactoring options.
+      This kind of feature has proven valuable in other contexts:
+      <ul>
+        <li>Eric Smith extended Python3's
+          <a href=https://github.com/python/cpython/issues/80998><big><code>f"…"</code></big> string syntax</a> to directly include code in the string produced.</li>
+        <li>
+          <a href=https://doi.org/10.1145/3313831.3376494>Lerner's Projection Boxes</a>
+          use identifiers that appear in code in table headers but do not directly affect string values in the program.
+        </li>
+        <li>
+          The <a href=https://github.com/power-assert-js/power-assert>power-assert</a>
+          JavaScript library contextualizes failing predicates in test code but does not typically affect string values that are used outside reporting tests that fail regardless.
+        </li>
+        <li>
+          Rust's <a href=https://doc.rust-lang.org/std/macro.dbg.html><big><code>dbg!</code></big> macro</a>
+          shows the expression and result, but only in strings sent to stderr.
+        </li>
+      </ul>
+    <p></p>
+
+    <h2>Interactivity</h2>
+
+    <p>
+      If we can super-charge <i>printf
       debugging</i>, what about other format string functions?
-      We pored over both <i>"stdio.h"</i> and
-      <i>«stdio.h»</i>, and we're super proud to
-      announce that COMEHERE enables an entirely new debugging
-      paradigm: <i>scanf debugging</i>.
+      We pored tirelessly over both <i>"stdio.h"</i> and <i>«stdio.h»</i>
+      (we ran <big><code>egrep 'f\b'</code></big>), and we're super proud to
+      announce that COMEHERE enables an entirely new debugging paradigm:
+      <i>scanf debugging</i>.
     </p>
 
     <p>
@@ -809,8 +1016,9 @@
 </pre></div>
 </table>
 
-    <p>This might seem lackluster interactivity compared to Brett Victor in
-      <a href="https://www.youtube.com/watch?v=PUv66718DII&amp;list=PLS4RYH2XfpAmswi1WDU6lwwggruEZrlPH">“Inventing on Principle”</a>,
+    <p>
+      This might seem lackluster interactivity compared to Bret Victor's
+      <a href=https://worrydream.com/#!/InventingOnPrinciple>“Inventing on Principle”, CUSEC 2012</a>,
       but it was bolted onto a language not designed for it.
     </p>
 
@@ -891,15 +1099,18 @@
 </pre></div>
 </table>
 
+    <h2>From debugging to regression testing</h2>
+
     <p>
       Once we've debugged a piece of code, it'd be nice to guard against
       future breakage, and maybe we've already got a REPL log, a notebook,
       of what we did when debugging.  It'd be super-nice to be able to
       edit that notebook down to something that can serve as a regression
       test.  Our extra goody-bag input comes in handy here.  Production code
-      shouldn't depend on test harness code, but a test harness that iterates
-      over, and runs each <big><code>COMEHERE</code></big> block and collects
-      test results can inject test affordances.
+      shouldn't depend on test harness code
+      (<a href=https://github.com/google/node-sec-roadmap/blob/8e01b94ee2a7bbae9c9f758131fd421e2a1c8aa6/chapter-1/threat-UIR.md>Node Security Roadmap</a> by M.Samuel et al.),
+      but a test harness that iterates over, and runs each <big><code>COMEHERE</code></big>
+      block and collects test results can inject test affordances.
     </p>
 
     <table class=example-display><tr valign=top><td class=left width=50%><div class=highlight><pre><span></span><span class=k>export</span><span class=w> </span><span class=kd>function</span><span class=w> </span><span class=nx>complexAPI</span><span class=p>()</span><span class=w> </span><span class=p>{</span>
@@ -1002,7 +1213,12 @@
       (Mark Miller et al, "E: Open source distributed capabilities," 2001)
       and its documentation and testing toolchain, especially
       <a href=https://erights.github.io/erights-org-website/elang/tools/updoc.html><i>updoc</i></a>.
+      While the authors learned from updoc, Python now supports this
+      via the <a href=https://docs.python.org/3/library/doctest.html>doctest module</a>,
+      though not for encapsulated functions.
     </p>
+
+    <h2>Wrapping up</h2>
 
     <p>
       In summary, <big><code>COMEHERE</code></big> provides a way to
@@ -1020,6 +1236,5 @@
       As such, it might serve as a useful building block for more
       syntactically-sugary debugging and testing features.
     </p>
-
   
 
