@@ -500,7 +500,7 @@
 </pre></div>
 </table>
 
-    <h3>Short circuiting logical expressions</h3>
+    <h3>Short circuiting expressions</h3>
 
     <p>
       Short-circuiting expressions blur the
@@ -509,13 +509,13 @@
       an <code>if</code> statement above but is typically evaluated for its result
       rather than for effect.  The expression <code>first &amp;&amp; second</code>
       is equivalent (modulo repeated evaluation of <code>first</code>) to
-      <code>first ? first : second</code>, and similarly
-      <code>first || second</code> needs to be rewritten when there's an embedded
+      <code>first ? first : second</code>. Those and
+      <code>first || second</code> need to be rewritten when there's an embedded
       <code>COMEHERE</code> block.
     </p>
 
     <table class=example-display><tr valign=top><td class=left width=50%><div class=highlight><pre><span></span><span class=k>export</span><span class=w> </span><span class=kd>let</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=o>=</span>
-<span class=w>  </span><span class=nb>Math</span><span class=p>.</span><span class=nx>random</span><span class=p>()</span>
+<span class=w>  </span><span class=nb>Math</span><span class=p>.</span><span class=nx>random</span><span class=p>()</span><span class=w> </span><span class=o>&gt;=</span><span class=w> </span><span class=mf>0.5</span>
 <span class=w>  </span><span class=o>?</span><span class=w> </span><span class=p>(()</span><span class=w> </span><span class=p>=&gt;</span><span class=w> </span><span class=p>{</span>
 <span class=w>      </span><span class=nx>COMEHERE</span><span class=o>:</span><span class=kd>with</span><span class=p>(</span><span class=s1>'In ? of hook'</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
 <span class=w>        </span><span class=nx>console</span><span class=p>.</span><span class=nx>log</span><span class=p>(</span><span class=s1>'in ?'</span><span class=p>);</span>
@@ -526,7 +526,7 @@
 </pre></div>
 <td class=right width=50%><div class=highlight style=height:10ex><pre><span></span><span class=kd>let</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nb>globalThis</span><span class=p>.</span><span class=nx>debugHooks</span><span class=p>.</span><span class=nx>getWhichSeeking</span><span class=p>(</span><span class=k>import</span><span class=p>.</span><span class=nx>meta</span><span class=p>)</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=mf>0</span><span class=p>;</span>
 <span class=kd>let</span><span class=w> </span><span class=nx>activeFns_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mi>0n</span><span class=p>;</span>
-<span class=k>export</span><span class=w> </span><span class=kd>let</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nb>Math</span><span class=p>.</span><span class=nx>random</span><span class=p>()</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=w> </span><span class=o>?</span><span class=w> </span><span class=p>(</span><span class=nx>f_0</span><span class=w> </span><span class=p>=&gt;</span><span class=w> </span><span class=p>{</span>
+<span class=k>export</span><span class=w> </span><span class=kd>let</span><span class=w> </span><span class=nx>x</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nb>Math</span><span class=p>.</span><span class=nx>random</span><span class=p>()</span><span class=w> </span><span class=o>&gt;=</span><span class=w> </span><span class=mf>0.5</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=w> </span><span class=o>?</span><span class=w> </span><span class=p>(</span><span class=nx>f_0</span><span class=w> </span><span class=p>=&gt;</span><span class=w> </span><span class=p>{</span>
 <span class=w>  </span><span class=k>if</span><span class=w> </span><span class=p>(</span><span class=nx>seeking_0</span><span class=w> </span><span class=o>===</span><span class=w> </span><span class=mf>1</span><span class=p>)</span><span class=w> </span><span class=p>{</span>
 <span class=w>    </span><span class=k>try</span><span class=w> </span><span class=p>{</span>
 <span class=w>      </span><span class=kd>const</span><span class=w> </span><span class=nx>callee_0</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=nx>f_0</span><span class=p>;</span>
@@ -1287,7 +1287,7 @@
       edit that notebook down to something that can serve as a regression
       test.  Our extra goody-bag input comes in handy here.  Production code
       shouldn't depend on test harness code
-      (<a href=https://github.com/google/node-sec-roadmap/blob/8e01b94ee2a7bbae9c9f758131fd421e2a1c8aa6/chapter-1/threat-UIR.md>Node Security Roadmap</a> by M.Samuel et al.),
+      (<a href=https://github.com/google/node-sec-roadmap/blob/8e01b94ee2a7bbae9c9f758131fd421e2a1c8aa6/chapter-1/threat-UIR.md#non-production-code-differs-from-production-code>Node Security Roadmap</a> by M.Samuel et al.),
       but a test harness that iterates over, and runs each <code>COMEHERE</code>
       block and collects test results can inject test affordances.
     </p>
