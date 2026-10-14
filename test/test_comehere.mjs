@@ -509,14 +509,14 @@ describe('comehere', () => {
             `,
       want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
-            while (c || seeking_0 === 1) {
+            while ((c || seeking_0 === 1) && seeking_0 !== 2 && seeking_0 !== 3) {
               if (seeking_0 === 1) {
                 seeking_0 = 0;
                 a();
               }
               f();
             }
-            for (; d || seeking_0 === 2;) {
+            while ((d || seeking_0 === 2) && seeking_0 !== 3) {
               if (seeking_0 === 2) {
                 seeking_0 = 0;
                 b();
@@ -546,37 +546,75 @@ describe('comehere', () => {
             `,
       want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
-            function* maybeNotEmptyIterator_0(items, seeking) {
-              for (let e of items) {
-                yield e;
-                seeking = false;
-              }
-              if (seeking) {
-                yield {};
+            {
+              const iter_0 = function* (o) {
+                for (const k in o) {
+                  yield k;
+                }
+              }(o)[Symbol.iterator]();
+              let done_0 = false;
+              try {
+                L_4: {
+                  L_5: while (true) {
+                    {
+                      done_0 = true;
+                      const step_0 = iter_0.next();
+                      done_0 = step_0.done;
+                      if (done_0 && seeking_0 !== 1 || seeking_0 === 2) {
+                        break L_4;
+                      } else {
+                        p = step_0.value;
+                        if (seeking_0 === 1) {
+                          seeking_0 = 0;
+                          a();
+                        }
+                        f();
+                      }
+                    }
+                    continue L_5;
+                  }
+                }
+              } finally {
+                if (!done_0) {
+                  const r = iter_0.return;
+                  if (r) {
+                    r.call(iter_0);
+                  }
+                }
               }
             }
-            function* maybeNotEmptyKeyIterator_0(obj, seeking) {
-              for (let k in obj) {
-                yield k;
-                seeking = false;
+            {
+              const iter_1 = els[Symbol.iterator]();
+              let done_1 = false;
+              try {
+                L_17: {
+                  L_18: while (true) {
+                    {
+                      done_1 = true;
+                      const step_1 = iter_1.next();
+                      done_1 = step_1.done;
+                      if (done_1 && seeking_0 !== 2) {
+                        break L_17;
+                      } else {
+                        e = step_1.value;
+                        if (seeking_0 === 2) {
+                          seeking_0 = 0;
+                          b();
+                        }
+                        g();
+                      }
+                    }
+                    continue L_18;
+                  }
+                }
+              } finally {
+                if (!done_1) {
+                  const r = iter_1.return;
+                  if (r) {
+                    r.call(iter_1);
+                  }
+                }
               }
-              if (seeking) {
-                yield "";
-              }
-            }
-            for (p of maybeNotEmptyKeyIterator_0(o, seeking_0 === 1)) {
-              if (seeking_0 === 1) {
-                seeking_0 = 0;
-                a();
-              }
-              f();
-            }
-            for (e of maybeNotEmptyIterator_0(els, seeking_0 === 2)) {
-              if (seeking_0 === 2) {
-                seeking_0 = 0;
-                b();
-              }
-              g();
             }
             `,
     }));
@@ -600,23 +638,26 @@ describe('comehere', () => {
             `,
       want: strip12`
             let seeking_0 = globalThis.debugHooks.getWhichSeeking(import.meta) || 0;
-            const caseToken_0 = {},
-              caseExpr_0 = x;
-            switch (seeking_0 === 1 ? caseToken_0 : caseExpr_0) {
-              case f():
-                a();
-                break;
-              case g():
-              case caseToken_0:
-                let y = b();
-                if (seeking_0 === 1) {
-                  seeking_0 = 0;
-                  console.log('Hello', y);
-                }
-                break;
-              case h():
-                c();
-                break;
+            {
+              let y;
+              const caseToken_0 = {},
+                caseExpr_0 = x;
+              switch (seeking_0 === 1 ? caseToken_0 : caseExpr_0) {
+                case f():
+                  a();
+                  break;
+                case caseToken_0:
+                case g():
+                  y = b();
+                  if (seeking_0 === 1) {
+                    seeking_0 = 0;
+                    console.log('Hello', y);
+                  }
+                  break;
+                case h():
+                  c();
+                  break;
+              }
             }
             `,
     }));

@@ -98,7 +98,10 @@ import { isDeclared } from './ast-declared.mjs';
  * - a transition out where there is no finally block.
  */
 export class Cfg {
-  constructor({ start, normalExit, abruptExit, regionTable }) {
+  constructor({
+    start, normalExit, abruptExit, regionTable,
+    returnedName = null, thrownName = null, preamble = [],
+  }) {
     if (!(start instanceof CfgNode && start.incoming.length === 0)) {
       throw new Error(start);
     }
@@ -118,6 +121,12 @@ export class Cfg {
     this.normalExit = normalExit;
     this.abruptExit = abruptExit;
     this.regionTable = regionTable;
+    /** Name of the variable that carries a returned value to normalExit, or null. */
+    this.returnedName = returnedName;
+    /** Name of the variable that carries a thrown value to abruptExit, or null. */
+    this.thrownName = thrownName;
+    /** Statements like `import`s that must stay at the top of a module body. */
+    this.preamble = preamble;
   }
 }
 
@@ -137,6 +146,8 @@ export class CfgNode {
   constructor(stmt, regionIndex) {
     this.stmt = stmt;
     this.region = regionIndex;
+    /** Optional hint to the emitter: 'switch' marks the head of a switch. */
+    this.tag = null;
     // The graph is built by adding to these arrays post-construction.
     this.incoming = [];
     this.outgoing = [];
@@ -203,6 +214,11 @@ export class CfgEdge {
        * way to its target
        */
       byWayOf = null,
+      /**
+       * Null or a Babel expression AST: the branch condition for NORMAL edges,
+       * the value to match for CASE edges, or the thrown value for LOCAL_THROWS.
+       */
+      expr = null,
     }
   ) {
     if (typeof kind !== 'number') { throw new Error(kind); }
@@ -213,5 +229,86 @@ export class CfgEdge {
     this.source = source;
     this.target = target;
     this.byWayOf = byWayOf;
+    this.expr = expr;
+    source.outgoing.push(this);
+    target.incoming.push(this);
   }
+}
+
+/** Kinds of region. */
+export const CfgRegionKind = {
+  ROOT: 'root',
+  TRY: 'try',
+  CATCH: 'catch',
+  FINALLY: 'finally',
+  /** A `{}` block that declares lexical bindings and so must stay together. */
+  BLOCK: 'block',
+};
+
+/**
+ * A table of nested regions.  Index 0 is the root.
+ * try/catch/finally regions of one statement share a `group` number.
+ */
+export class CfgRegionTable {
+  #regions = [{ kind: CfgRegionKind.ROOT, parent: null, group: null, param: null }];
+  #groups = 0;
+
+  get size() { return this.#regions.length }
+
+  newGroup() { return this.#groups++ }
+
+  /** Returns the new region's index. */
+  add(kind, parent, group = null, param = null) {
+    this.#regions.push({ kind, parent, group, param });
+    return this.#regions.length - 1;
+  }
+
+  get(i) { return this.#regions[i] }
+
+  /** True iff region `inner` is `outer` or is nested within it. */
+  contains(outer, inner) {
+    for (let r = inner; r !== null; r = this.#regions[r].parent) {
+      if (r === outer) { return true }
+    }
+    return false;
+  }
+
+  /** The indices of the try/catch/finally regions with the same group. */
+  groupMembers(group) {
+    let out = {};
+    this.#regions.forEach((r, i) => {
+      if (r.group === group) { out[r.kind] = i }
+    });
+    return out;
+  }
+}
+
+/**
+ * Lists the nodes reachable from `cfg.start` in discovery order.
+ *
+ * A `finally` runs on abrupt exits from its `try`, so its entry is reachable
+ * whenever the try's entry is, even if the try never completes normally.
+ *
+ * @return {CfgNode[]}
+ */
+export function reachableNodes(cfg) {
+  const rt = cfg.regionTable;
+  const list = [];
+  const seen = new Set();
+  const stack = [cfg.start];
+  while (stack.length) {
+    let n = stack.pop();
+    if (seen.has(n)) { continue }
+    seen.add(n);
+    list.push(n);
+    for (let i = n.outgoing.length; --i >= 0;) { stack.push(n.outgoing[i].target) }
+    let region = rt.get(n.region);
+    if (region.kind === CfgRegionKind.TRY && region.entry === n) {
+      for (let member of Object.values(rt.groupMembers(region.group))) {
+        let entry = rt.get(member).entry;
+        if (entry && entry !== n) { stack.push(entry) }
+      }
+    }
+  }
+  return list;
 }

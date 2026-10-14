@@ -19,6 +19,9 @@ import * as types from '@babel/types';
 import { NameMaker, namesUsedIn } from './name-maker.mjs';
 import { AssignedNames, declareAssignedNames } from './assigned-names.mjs';
 import { isDeclared } from './ast-declared.mjs';
+import { cfgFromBody } from './cfg-from-body.mjs';
+import { cfgToBody } from './cfg-to-body.mjs';
+import { seekTargets, findNodeFor } from './cfg-seek.mjs';
 
 /**
  * Ensure that control-flow statements use blocks around statements
@@ -159,39 +162,49 @@ function ensureActiveFnBodyPrefixPresent(contextPath, assignedNames) {
  * Unpacks the prefix created by ensureActiveFnBodyPrefixPresent.
  */
 function enclosingActiveFnContext(contextPath, assignedNames) {
-  let isActiveCall = null, bitIndex = null;
   let fnPath = enclosingFn(contextPath);
+  let { isActiveCall, bitIndex } = fnPath
+      ? activeCallOfBody(fnPath.node.body, assignedNames)
+      : { isActiveCall: null, bitIndex: null };
+  return {
+    fnPath,
+    isActiveCall,
+    bitIndex,
+  };
+}
+
+/**
+ * Looks for the prefix created by ensureActiveFnBodyPrefixPresent at the
+ * start of a function body.
+ */
+function activeCallOfBody(bodyNode, assignedNames) {
+  let isActiveCall = null, bitIndex = null;
   let { activeFns } = assignedNames;
-  if (fnPath && activeFns) {
-    let body0 = fnPath.node.body.body[0];
-    if (
+  let body0 = types.isBlockStatement(bodyNode) ? bodyNode.body[0] : null;
+  if (
+    activeFns &&
       types.isVariableDeclaration(body0) &&
-        body0.kind === 'const' &&
-        body0.declarations.length === 1
-    ) {
-      let { id, init } = body0.declarations[0];
-      if (types.isIdentifier(id) && init) {
-        if (types.isBinaryExpression(init) && init.operator === '&') {
-          let { left, right } = init;
-          if (types.isBigIntLiteral(right) && types.isBinaryExpression(left)) {
-            if (left.operator === '>>') {
-              let { left: leftLeft, right: leftRight } = left;
-              if (types.isIdentifier(leftLeft) && leftLeft.name === activeFns &&
-                  types.isBigIntLiteral(leftRight)) {
-                isActiveCall = id.name;
-                bitIndex = BigInt(leftRight.value);
-              }
+      body0.kind === 'const' &&
+      body0.declarations.length === 1
+  ) {
+    let { id, init } = body0.declarations[0];
+    if (types.isIdentifier(id) && init) {
+      if (types.isBinaryExpression(init) && init.operator === '&') {
+        let { left, right } = init;
+        if (types.isBigIntLiteral(right) && types.isBinaryExpression(left)) {
+          if (left.operator === '>>') {
+            let { left: leftLeft, right: leftRight } = left;
+            if (types.isIdentifier(leftLeft) && leftLeft.name === activeFns &&
+                types.isBigIntLiteral(leftRight)) {
+              isActiveCall = id.name;
+              bitIndex = BigInt(leftRight.value);
             }
           }
         }
       }
     }
   }
-  return {
-    fnPath,
-    isActiveCall,
-    bitIndex,
-  };
+  return { isActiveCall, bitIndex };
 }
 
 /**
@@ -203,8 +216,17 @@ function seekingCheck(
   contextPath,
   inverted = false
 ) {
-  let { seekingVarName } = assignedNames;
   let { isActiveCall } = enclosingActiveFnContext(contextPath, assignedNames);
+  return seekingCheckWith(assignedNames, seekingValue, isActiveCall, inverted);
+}
+
+function seekingCheckWith(
+  assignedNames,
+  seekingValue,
+  isActiveCall,
+  inverted = false
+) {
+  let { seekingVarName } = assignedNames;
 
   let [comparisonOp, combiningOp] = inverted
       ? ['!==', '||']
@@ -544,8 +566,50 @@ function driveControlToComeHereBlocks(
   assignedNames,
   console
 ) {
-  for (let comeHereBlock of comeHereBlocks) {
-    driveControlToComeHereBlock(comeHereBlock, assignedNames, console);
+  // Maps function/module nodes to the goals that control must reach within them.
+  let bodyGoals = new Map();
+  let finishers = comeHereBlocks.map(
+    (comeHereBlock) => driveControlToComeHereBlock(
+      comeHereBlock, assignedNames, console, bodyGoals)
+  );
+
+  for (let entry of bodyGoals.values()) {
+    driveControlWithinBody(entry, assignedNames, console);
+  }
+
+  for (let finish of finishers) { finish() }
+}
+
+/**
+ * Uses control flow graph analysis to adjust the branch conditions in a body
+ * so that control reaches each goal when seeking it.
+ *
+ * @param {{bodyNode: Node, isProgram: boolean, goals: {goal: Node, seek: SeekTarget}[]}} entry
+ *     where `bodyNode` is a Program or the BlockStatement of a function.
+ */
+function driveControlWithinBody({ bodyNode, isProgram, goals }, assignedNames, console) {
+  let { nameMaker } = assignedNames;
+  try {
+    let cfg = cfgFromBody(bodyNode, nameMaker, { isFunction: !isProgram });
+    let targets = new Map();
+    for (let { goal, seek } of goals) {
+      let node = findNodeFor(cfg, goal);
+      if (node) {
+        targets.set(node, seek);
+      } else {
+        console.error('COMEHERE: could not find goal in control flow graph.');
+      }
+    }
+    let { modified, unreachable } = seekTargets(cfg, targets, nameMaker);
+    for (let node of unreachable) {
+      console.error('COMEHERE: could not find a path to a COMEHERE block.');
+    }
+    if (modified) {
+      // Modify in place so that references to the body stay valid.
+      bodyNode.body = cfgToBody(cfg, nameMaker).body;
+    }
+  } catch (e) {
+    console.error(`COMEHERE: unable to analyze control flow: ${e?.message || e}`);
   }
 }
 
@@ -556,7 +620,8 @@ function driveControlToComeHereBlocks(
 function driveControlToComeHereBlock(
   comeHereBlock,
   assignedNames,
-  console
+  console,
+  bodyGoals,
 ) {
   let seekingVarName = assignedNames.seekingVarName;
   let seekingValue = comeHereBlock.seekingValue;
@@ -590,174 +655,10 @@ function driveControlToComeHereBlock(
   // Walk rootward from the path adding instructions.
   function adjust(goal) {
     let path = goal.parentPath;
-    if (path.isIfStatement()) {
-      //    if (c) { then } else { alt }
-      // When the goal is within `then`:
-      // -> if (c || seekingVar === seekingValue) { then } else { alt }
-      // When the goal is within `alt`:
-      // -> if (c && seekingVar !== seekingValue) { then } else { alt }
-      let test = path.get('test');
-      let thenClause = path.get('consequent');
-      let elseClause = path.get('alternate');
-      if (thenClause.node === goal.node) {
-        test.replaceWith(
-          types.logicalExpression('||', test.node, seekingCheckForBlock(path))
-        )
-      } else if (elseClause.node === goal.node) {
-        test.replaceWith(
-          types.logicalExpression('&&', test.node, seekingCheckForBlock(path, true))
-        )
-      }
-    } else if (path.isSwitchStatement()) {
-      //    switch (e) {
-      //    case f(): ...;
-      //    case g(): ...;
-      //    case h(): ...;
-      //    }
-      //
-      // When the goal is within statements following and closest to `case g():`
-      //
-      // -> const caseToken = {},
-      //      caseExpr = e;
-      //    switch (seekingVar === seekingValue ? caseToken : caseExpr) {
-      //    case f(): ...;
-      //    case g():
-      //    case caseToken:
-      //      ...;
-      //    case h(): ...;
-      //    }
-      //
-      // When the goal is within statements following and closest to `default:`
-      // we can similarly add `case caseToken:` alongside the `default:`.
-      if (goal.isSwitchCase()) {
-        let discriminant = path.get('discriminant');
-        let discriminantNode = discriminant.node;
-        let caseTokenName = nameMaker.unusedName('caseToken');
-        let caseExprName = nameMaker.unusedName('caseExpr');
-        discriminant.replaceWith(
-          types.conditionalExpression(
-            seekingCheckForBlock(path),
-            types.identifier(caseTokenName),
-            types.identifier(caseExprName),
-          )
-        );
-        path.insertBefore(
-          types.variableDeclaration(
-            'const',
-            [
-              types.variableDeclarator(
-                types.identifier(caseTokenName),
-                types.objectExpression([]),
-              ),
-              types.variableDeclarator(
-                types.identifier(caseExprName),
-                discriminantNode,
-              )
-            ],
-          )
-        );
-        let goalConsequent = goal.node.consequent;
-        goal.node.consequent = [];
-        let newCase = types.switchCase(
-          types.identifier(caseTokenName),
-          goalConsequent
-        );
-        goal.insertAfter(newCase);
-      }
-    } else if (path.isLoop()) {
-      // When the goal is within body:
-      //
-      //    while (c) { body }
-      // -> while (c || seekingVar === seekingValue) { body }
-      //
-      //    for (;c;) { body }
-      // -> for (; c || seekingVar === seekingValue) { body }
-      //
-      //    for (let el of it) { body }
-      // -> for (let el of maybeNotEmptyIterator(it, seekingVar === seekingValue)) { body }
-      //
-      //    for (let el in it) { body }
-      // -> for (let el of maybeNotEmptyKeyIterator(it, seekingVar === seekingValue)) { body }
-      if (goal.node === path.node.body) {
-        let test = path.get('test');
-        if (path.isForStatement() || path.isWhileStatement()) {
-          test.replaceWith(
-            types.logicalExpression('||', test.node, seekingCheckForBlock(path))
-          );
-        } else if (path.isForOfStatement() || path.isForInStatement()) {
-          let isForIn = path.isForInStatement();
-          let right = path.get('right');
-
-          let wrapperName = isForIn
-              ? assignedNames.requireMaybeNotEmptyKeyIterator()
-              : assignedNames.requireMaybeNotEmptyIterator();
-
-          right.replaceWith(
-            types.callExpression(
-              types.identifier(wrapperName),
-              [ right.node, seekingCheckForBlock(path) ]
-            )
-          );
-
-          if (isForIn) {
-            path.replaceWith(
-              types.forOfStatement(
-                path.node.left,
-                path.node.right,
-                path.node.body,
-              )
-            )
-          }
-        }
-      }
-    } else if (path.isTryStatement()) {
-      // The goal could be in any of:
-      //
-      // - The `try` clause.  No changes necessary.
-      // - The `finally` clause.  No changes necessary.
-      // - The `catch` clause.
-      //   Add the below to the beginning of the corresponding `try` clause.
-      //
-      //      try { ... }
-      //   -> try { if (seekingVar === seekingValue) { throw null; } ... }
-      let catchClause = path.get('handler');
-      if (goal.node === catchClause.node) {
-        let catchParam = catchClause.node.param;
-        let catchParamName = catchParam && types.isIdentifier(catchParam)
-            ? catchParam.name
-            : null;
-        // If the catch parameter name is 'e', then we fall through
-        // several strategies to find the expression to throw:
-        //    catch.e
-        //    e
-        // If neither of those work, we just `throw new globalThis.Error`.
-        let throwableExpression = (
-            catchParamName
-            ? (lookupAndConsumeParam(['catch'], catchParamName)
-               || lookupAndConsumeParam([], catchParamName))?.[1]
-            : null
-        ) || types.newExpression(
-          types.memberExpression(
-            types.identifier('globalThis'),
-            types.identifier('Error')
-          ),
-          []
-        );
-        let conditionalThrow = types.ifStatement(
-          seekingCheckForBlock(path),
-          types.blockStatement([
-            types.throwStatement(throwableExpression),
-          ])
-        );
-        let tryBlock = path.get('block')
-        let startOfTry = tryBlock.get('body')[0];
-        if (startOfTry) {
-          startOfTry.insertBefore(conditionalThrow)
-        } else {
-          tryBlock.node.body.push(conditionalThrow);
-        }
-      }
-    } else if (path.isFunction()) {
+    // Statement-level control flow (if/switch/loops/try) is handled by
+    // analyzing the control flow graph of the enclosing body; see
+    // driveControlToComeHereBlocks.
+    if (path.isFunction()) {
       // When the goal is within the function body, do the following.
       //
       // Find the arguments based on the signature and generate an argument list.
@@ -1226,6 +1127,7 @@ function driveControlToComeHereBlock(
             throw Error(`Blockify failed ${containerPath.type}`);
           }
           insertionPoint.insertAfter(callBlock);
+          currentGoal = callBlock;
         } else if (path.isFunctionExpression() || path.isArrowFunctionExpression()) {
           path.replaceWith(
             types.callExpression(
@@ -1239,9 +1141,11 @@ function driveControlToComeHereBlock(
               [path.node]
             )
           );
+          currentGoal = path.node;
         } else if (containingClass) {
           if (containingClass.isClassDeclaration()) {
             containingClass.insertAfter(callBlock);
+            currentGoal = callBlock;
           } else {
             // (className => { callBlock; return className })(class {...})
             containingClass.replaceWith(
@@ -1255,7 +1159,8 @@ function driveControlToComeHereBlock(
                 ),
                 [containingClass.node]
               )
-            )
+            );
+            currentGoal = containingClass.node;
           }
         } else if (isObjectMethod) {
           let parent = path.parent;
@@ -1272,6 +1177,7 @@ function driveControlToComeHereBlock(
               [parent]
             )
           );
+          currentGoal = path.parentPath.node;
         } else {
           throw 'TODO other';
         }
@@ -1345,19 +1251,62 @@ function driveControlToComeHereBlock(
     }
   }
 
+  // The node that we are trying to drive control to.
+  // This changes as we move outward.  For example, once we have called
+  // the function containing the COMEHERE block, the goal is that call.
+  let currentGoal = comeHereBlock.path.node;
+
+  // Remember, for each function or module body that we pass through, what
+  // to drive control to within it.  Control flow graph analysis happens later
+  // once all COMEHERE blocks have contributed their goals.
+  function recordGoal(ownerPath, bodyNode) {
+    let entry = bodyGoals.get(bodyNode);
+    if (!entry) {
+      entry = { bodyNode, isProgram: ownerPath.isProgram(), goals: [] };
+      bodyGoals.set(bodyNode, entry);
+    }
+    // Computed lazily because the prefix may not exist yet.
+    let isActiveCall = () => activeCallOfBody(bodyNode, assignedNames).isActiveCall;
+    entry.goals.push({
+      goal: currentGoal,
+      seek: {
+        positive: () => seekingCheckWith(
+          assignedNames, seekingValue, isActiveCall()),
+        negative: () => seekingCheckWith(
+          assignedNames, seekingValue, isActiveCall(), true),
+        throwableFor(param) {
+          let name = param && types.isIdentifier(param) ? param.name : null;
+          return name
+            ? (lookupAndConsumeParam(['catch'], name)
+               || lookupAndConsumeParam([], name))?.[1] || null
+            : null;
+        },
+      },
+    });
+  }
+
   let path = comeHereBlock.path;
   while (!path.isProgram()) {
+    if (path.parentPath.isProgram()) {
+      recordGoal(path.parentPath, path.parentPath.node);
+    } else if (path.parentPath.isFunction() && path.parentPath.node.body === path.node &&
+               path.isBlockStatement()) {
+      recordGoal(path.parentPath, path.node);
+    }
     adjust(path);
     path = path.parentPath;
   }
 
-  if (initializers.length) {
-    let unused = initializers.map(
-      ([dottedPath, right]) =>
-          `\`${dottedPath} = ${generate(right).code}\``
-    ).join(", ")
-    console.error(`COMEHERE: Initializer(s) did not match variables needed: ${unused}.`);
-  }
+  // Reported after the control flow analysis has had a chance to use them.
+  return function reportUnusedInitializers() {
+    if (initializers.length) {
+      let unused = initializers.map(
+        ([dottedPath, right]) =>
+            `\`${dottedPath} = ${generate(right).code}\``
+      ).join(", ")
+      console.error(`COMEHERE: Initializer(s) did not match variables needed: ${unused}.`);
+    }
+  };
 }
 
 /**
