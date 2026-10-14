@@ -299,6 +299,14 @@
 </pre></div>
 </table>
 
+    <p>
+      There's no need to call <code>f</code> to debug it.  The <code>COMEHERE</code>
+      synthesizes a call to <code>f</code> with the desired inputs.
+
+      The adjusted loop condition will drive control into the loop even if
+      you ask it to <code>COMEHERE</code> with <code>n</code> ≤ 0.
+    </p>
+
     <h3>Switch cases</h3>
 
     <p>
@@ -955,7 +963,9 @@
       })(subject, 'verb')
     </pre>
 
-    <h2>Visualizing Intermediates</h2>
+    <h2>Use Cases</h2>
+
+    <h3>Visualizing Intermediates</h3>
 
     <p>
       We asked more than two veteran printf-debuggers, “if you could
@@ -982,8 +992,8 @@
 
     <p>
       That enables wrapping a complex intermediate expression
-      in <code>($$0 = complexIntermediate())</code> followed by
-      <code>console.log(...$$0)</code>.
+      in <code>($$0 = complexIntermediate())</code> and later
+      in that scope doing <code>console.log(...$$0)</code>.
     </p>
 
     <table class=example-display><tr valign=top><td class=left width=50%><div class=highlight><pre><span></span><span class=kd>let</span><span class=w> </span><span class=nx>a</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>10</span><span class=p>,</span><span class=w> </span><span class=nx>b</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>12</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>37</span><span class=p>,</span><span class=w> </span><span class=nx>d</span><span class=w> </span><span class=o>=</span><span class=w> </span><span class=mf>42</span><span class=p>;</span>
@@ -1123,7 +1133,7 @@
           <a href=https://github.com/python/cpython/issues/80998><code>f"…"</code> string syntax</a> to directly include code in the string produced.</li>
         <li>
           <a href=https://doi.org/10.1145/3313831.3376494>Lerner's Projection Boxes</a>
-          use identifiers that appear in code in table headers but do not directly affect string values in the program.
+          use identifiers that appear in code in table headers and do it without affect string values in the program.
         </li>
         <li>
           The <a href=https://github.com/power-assert-js/power-assert>power-assert</a>
@@ -1131,12 +1141,12 @@
         </li>
         <li>
           Rust's <a href=https://doc.rust-lang.org/std/macro.dbg.html><code>dbg!</code> macro</a>
-          shows the expression and result, but only in strings sent to stderr.
+          shows the expression and result, and limits semantic entanglement to strings sent to stderr.
         </li>
       </ul>
     <p></p>
 
-    <h2>Interactivity</h2>
+    <h3>Interactivity</h3>
 
     <p>
       If we can super-charge <i>printf
@@ -1268,7 +1278,7 @@
 </pre></div>
 </table>
 
-    <h2>From debugging to regression testing</h2>
+    <h3>From debugging to regression testing</h3>
 
     <p>
       Once we've debugged a piece of code, it'd be nice to guard against
