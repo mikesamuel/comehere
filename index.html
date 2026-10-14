@@ -250,6 +250,14 @@
 
     <include src=".html-includes/side-by-side/loop.html"></include>
 
+    <p>
+      There's no need to call <code>f</code> to debug it.  The <code>COMEHERE</code>
+      synthesizes a call to <code>f</code> with the desired inputs.
+
+      The adjusted loop condition will drive control into the loop even if
+      you ask it to <code>COMEHERE</code> with <code>n</code> &le; 0.
+    </p>
+
     <h3>Switch cases</h3>
 
     <p>
