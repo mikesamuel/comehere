@@ -7,7 +7,7 @@ class C {
 
   get x() {
     // One can specify inputs to the constructor in which
-    // case it synthesizes an insance.
+    // case it synthesizes an instance.
     return $$0 = this._x;
     COMEHERE:with ('getter for x', C.this.x = 42) {
       console.log(...$$0);

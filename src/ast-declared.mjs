@@ -2,6 +2,7 @@ import * as types from '@babel/types';
 
 /**
  * Looks at a babel path to an identifier and tells whether it
+ * is part of a declaration, rather than a read of that identifier.
  */
 export function isDeclared(identifierPath) {
   let {parentPath} = identifierPath;
