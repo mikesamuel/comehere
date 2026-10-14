@@ -553,8 +553,8 @@
 
     <p>
       That enables wrapping a complex intermediate expression
-      in <code>($$0 = complexIntermediate())</code> followed by
-      <code>console.log(...$$0)</code>.
+      in <code>($$0 = complexIntermediate())</code> and later
+      in that scope doing <code>console.log(...$$0)</code>.
     </p>
 
     <include src=".html-includes/side-by-side/dollarDollar.html"></include>
@@ -579,7 +579,7 @@
           <a href="https://github.com/python/cpython/issues/80998"><code>f"&hellip;"</code> string syntax</a> to directly include code in the string produced.</li>
         <li>
           <a href="https://doi.org/10.1145/3313831.3376494">Lerner's Projection Boxes</a>
-          use identifiers that appear in code in table headers but do not directly affect string values in the program.
+          use identifiers that appear in code in table headers and do it without affect string values in the program.
         </li>
         <li>
           The <a href="https://github.com/power-assert-js/power-assert">power-assert</a>
@@ -587,7 +587,7 @@
         </li>
         <li>
           Rust's <a href="https://doc.rust-lang.org/std/macro.dbg.html"><code>dbg!</code> macro</a>
-          shows the expression and result, but only in strings sent to stderr.
+          shows the expression and result, and limits semantic entanglement to strings sent to stderr.
         </li>
       </ul>
     </p>
