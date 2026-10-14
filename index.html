@@ -17,14 +17,18 @@
     </p>
 
     <p>
-      This showcases a syntactic feature that simplifies both live programming and
-      a robust
+      This showcases a syntactic addition to JavaScript that
+      simplifies live programming and enables a robust
       <span style="display:inline-block; border: 1px dotted black"
-            >investigate &rarr; fix &rarr; guard (against regressions)</span> developer
-      flow by allowing mixing non-production live/test code into production contexts
-      where it can refer to encapsulated implementation details by name, without
-      affecting the semantics of code in production.
+       >investigate &rarr; fix &rarr; guard (against
+       regressions)</span> developer flow by allowing non-production
+       investigatory&amp;testing code to nest within production
+       contexts where it can refer to encapsulated implementation
+       details by name, without affecting the semantics of code in
+       production.
     </p>
+
+    <ol id="table-of-contents"></ol>
 
     <p>
       Below, you can see the proposal in action!
@@ -33,9 +37,11 @@
       help you understand what's going on.
       But getting the right inputs to that function requires reverse
       engineering a <i>program input</i> that would cause the desired function call.
-      That's now unnecessary. Simply tell the program to <big><code>COMEHERE</code></big> with
-      the inputs you want, and it will.
+      That's now unnecessary. Simply tell the program to <code>COMEHERE</code>
+      with the inputs you want, and it will.
     </p>
+
+    <h2>Playground</h2>
 
     <table id="editor-table">
       <tr id="scroll-back-button-row" style="display:none">
@@ -51,7 +57,7 @@
           <select id="block-choice"></select>
           <p>
             <big>⬑</big> That play button runs the code.  The selector lets
-            you pick which <big><code>COMEHERE</code></big> block to run.
+            you pick which <code>COMEHERE</code> block to run.
           </p>
           <div id="console-output"></div></td>
         <td valign="top" width="50%"><div id="translation"></div></td>
@@ -61,36 +67,22 @@
     <script type="module" src="./editor-support.mjs"></script>
 
     <p>
-      On the left you can see a sample program that uses <big><code>COMEHERE:with</code></big>
+      On the left you can see a sample program that uses <code>COMEHERE:with</code>
       to cause a function to be called with certain inputs.
       And then it logs those outputs.
       It's <i>printf debugging on steroids</i>!
     </p>
 
     <p>
-      Hit the <i>play</i> button below the editor to see the console
-      output from the <big><code>COMEHERE</code></big> block body.
-      Below are the parts of a <big><code>COMEHERE</code></big> block:
+      Hit the <i>play</i> ("▶️") button right below the editor to see the console
+      output from the <code>COMEHERE</code> block body.
     </p>
 
-    <ul>
-      <li>There's a syntactic marker.  This is placeholder syntax
-        that lets us integrate the proposal into existing toolchains.
-      <li>If there's a quoted string right after the open parenthesis,
-        it's a <i>description</i>.  It's optional but providing it helps
-        tools like the developer console make it easy to pick the
-        right block when interactively debugging a module.
-      <li>Then there are zero or more <i>assignments</i>. This lets the
-        developer control the values of inputs to functions and
-        class instances that contain the target
-        <big><code>COMEHERE</code></big> block.
-      <li>The calling framework may provide <i>goodies</i>, extra
-        visualization, testing, or live programming affordances that
-        should not be available to production code.  They get bound
-        to this name if provided.</li>
-      <li>Finally, there's a <i>body</i>, statements to run that help
-        the developer understand their code.</li>
-    </ul>
+    <h2>Syntax Explainer</h2>
+
+    <p>
+      Here's the added syntactic element, the <code>COMEHERE</code> block.
+    </p>
 
     <style>
       span.part-marker { position: relative; border: 1px dashed #44d }
@@ -128,7 +120,30 @@
     </p>
 
     <p>
-      <big><code>COMEHERE</code></big> is inspired by the
+      Here are the parts of a <code>COMEHERE</code> block:
+    </p>
+
+    <ul>
+      <li>There's a syntactic marker.  This is placeholder syntax
+        that lets us integrate the proposal into existing toolchains.
+      <li>If there's a quoted string right after the open parenthesis,
+        it's a <i>description</i>.  It's optional but providing it helps
+        tools like the developer console make it easy to pick the
+        right block when interactively debugging a module.
+      <li>Then there are zero or more <i>assignments</i>. This lets the
+        developer control the values of inputs to functions and
+        class instances that contain the target
+        <code>COMEHERE</code> block.
+      <li>The calling framework may provide <i>goodies</i>, extra
+        visualization, testing, or live programming affordances that
+        should not be available to production code.  They get bound
+        to this name if provided.</li>
+      <li>Finally, there's a <i>body</i>, statements to run that help
+        the developer understand their code.</li>
+    </ul>
+
+    <p>
+      <code>COMEHERE</code> is inspired by the
       <a href="https://esolangs.org/wiki/ComeFrom2">Come From</a>
       esoteric language which jokingly advanced the idea that
       transfers of control could be specified, not in the context from
@@ -137,7 +152,7 @@
     </p>
 
     <p>
-      <big><code>COMEHERE</code></big> works by
+      <code>COMEHERE</code> works by
       &ldquo;driving control&rdquo; to the block.
       Look at the top line of the translation on the right above;
       when <code>seeking_0</code> is <code>1</code>, it'll call
@@ -146,7 +161,7 @@
     </p>
 
     <p>
-      With <big><code>COMEHERE</code></big>, loading the module
+      With <code>COMEHERE</code>, loading the module
       has the side-effect of letting the user
       (via <code>debugHooks</code>) choose what to debug and
       logging valuable information.  No need to reverse engineer
@@ -162,31 +177,67 @@
       of <i>Come From</i>.  AOP focuses on assembling production code from
       multiple separately specified and maintained aspects.  This work
       differs in that it focuses on preserving the semantics of production
-      code, and allowing separate runs of the same program to work towards
+      code, allowing colocation of production and testing concerns, and
+      allowing separate runs of the same program to work towards
       different non-production goals.
     </p>
 
     <h2>Rewriting Rules</h2>
 
     <p>
-      First up, explaining the rewrite rules by example.
+      First up, explaining the rewrite rules with example.
       Then some caveats regarding that rewriting.
       And those are followed with a discussion of use cases across
       the extended live-programming investigate &rarr; fix &rarr; guard flow.
+    </p>
+
+    <p>
+      The rewrite rules are based on a Babel AST transformer.
+      It adds branch conditions to each function body to drive control to the
+      chosen <code>COMEHERE</code> block, and synthesizes calls to
+      functions so that control reaches the function bodies it needs to.
+    </p>
+
+    <p>
+      When a function body needs additional branch instructions, the
+      transformer derives a control-flow graph (CFG) with at most
+      one normal exit point, and one explicit <code>throw</code>
+      point.
+      Having these unique terminal nodes simplifies planning a path to the
+      chosen <code>COMEHERE</code> block that avoids them.
+      Additionally, high-level loop constructs like
+      <code>for (&helliup;of&hellip;) {&hellip;}</code> might
+      be desugared to make their branch conditions explicit.
+    </p>
+
+    <p>
+      The end goal of this flow-sensitive transform is to do as little
+      damage to the original AST as possible so that state closed over
+      by the <code>COMEHERE</code> block is initialized and
+      available.
+    </p>
+
+    <p>
+      The transformer makes no attempt to guarantee termination of code
+      on the control path to the <code>COMEHERE</code> block.
+      JavaScript is non-total, some looping is necessary to aid live
+      programming (initializing lookup tables, for example) and it's
+      not clear to the authors what steps to curtail looping would
+      aid investigation and which would not.
     </p>
 
     <h3>If</h3>
 
     <p>
       &ldquo;Driving control&rdquo; means making branching choices
-      that end up running the chosen <big><code>COMEHERE</code></big>
+      that end up running the chosen <code>COMEHERE</code>
       blocks.  In the below you can see two blocks.  <small>(Hit the
       '📋' button to play with the example code in the editor
       above.)</small>  If <code>seeking_0</code> is 1 then it ignores
       the result of <code>Math.random()</code> and jumps into
       the <i>then</i> branch regardless; if it's 2 it jumps into
       the <i>else</i> branch regardless; otherwise it runs as if there
-      were no <big><code>COMEHERE</code></big> blocks at all.
+      were no <code>COMEHERE</code> blocks at all.
     </p>
 
     <include src=".html-includes/side-by-side/if.html"></include>
@@ -201,13 +252,31 @@
 
     <h3>Switch cases</h3>
 
+    <p>
+      To get inside a <code>case</code> we synthesize a sentinel value
+      and substitute that for the matched expression result.
+    </p>
+
     <include src=".html-includes/side-by-side/switch.html"></include>
 
     <h3>Catch blocks inside try statements</h3>
 
+    <p>
+      Synthesizing a <code>throw</code> at the beginning of the
+      corresponding <code>try</code> clause serves to get control
+      into a <code>catch</code> clause, and the desired binding
+      list can specify the exact thrown expression.
+    </p>
+
     <include src=".html-includes/side-by-side/catch.html"></include>
 
     <h3>Members in classes</h3>
+
+    <p>
+      To get into a non <code>static</code> member's body, we need
+      to know what <code>this</code> is which is a job for the
+      desired binding list.
+    </p>
 
     <include src=".html-includes/side-by-side/class-method.html"></include>
 
@@ -216,69 +285,154 @@
     <p>
       Short-circuiting expressions blur the
       distinction between expressions and control flow.
-      <big><code>condition ? thenExpr : elseExpr</code></big> is roughly analogous to
+      <code>condition ? thenExpr : elseExpr</code> is roughly analogous to
       an <code>if</code> statement above but is typically evaluated for its result
-      rather than for effect.  The expression <big><code>first && second</code></big>
+      rather than for effect.  The expression <code>first && second</code>
       is equivalent (modulo repeated evaluation of <code>first</code>) to
-      <big><code>first ? first : second</code></big>, and similarly
+      <code>first ? first : second</code>, and similarly
       <code>first || second</code> needs to be rewritten when there's an embedded
-      <big><code>COMEHERE</code></big> block.
-      TODO: <big><code>first ?? second</code></big> is similar to a short-circuiting
-      <code>&&</code> expression, but falls over to <code>second</code> when
-      <code>first</code> is nullish, not when its falsey.
+      <code>COMEHERE</code> block.
     </p>
 
     <include src=".html-includes/side-by-side/short-circuits.html"></include>
-
-    <p>
-      JavaScript has added
-      <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining">optional dispatch</a>.
-
-      <big><code>subject?.verb(args)</code></big> only evaluates
-      <code>args</code> when <code>subject</code> is not
-      nullish, so care must be taken when it is nullish to still allow
-      transfer of control into arguments.
-
-      TODO: handle optional member lookup and calls by desugaring to
-      something like the below where the key is captured so this works
-      for both literal method names and computed keys.
-    </p>
-
-    <pre>
-      // subhect?.verb(args)
-      ((subject0, key0) => {
-        if (subject0 == null && SEEKING_PREDICATE) {
-          subject0 = { [key0]() {} };
-        }
-        return subject0?[key](args);
-      })(subject, 'verb')
-    </pre>
 
     <h3>Reentrancy</h3>
 
     <p>
       Below is a tricky example. A recursive function that recurses
-      <i>before</i> reaching the <big><code>COMEHERE</code></big> block.
+      <i>before</i> reaching the <code>COMEHERE</code> block.
       If the translation wasn't careful, <code>n</code> would be 2 when
       it was first reached instead of 10 as requested.
     </p>
 
     <include src=".html-includes/side-by-side/fibonacci.html"></include>
 
+    <p>
+      The synthesized <code>isActiveCall</code> variable is
+      initialized early in the function body (see CAVEAT below about
+      race conditions in languages that are not-event-loop concurrent
+      like JavaScript) so before any same-thread reentrancy.
+      And injected branch conditions check it too.
+    </p>
+
     <h3>Postconditions</h3>
 
     <p>
-      Another thing to note is that, when one or more
-      <big><code>COMEHERE</code></big> blocks occur right after a
+      Another thing to note about that last example: when one or more
+      <code>COMEHERE</code> blocks occur right after a
       <code>return</code> statement, they can run and the special
       expression <code>Function.return</code> refers to the returned
       value. (That syntax only works inside those blocks)
     </p>
 
+    <h2>Caveats</h2>
+
+    <h3>Making unrepresentable program states representable</h3>
+
+    <include src=".html-includes/side-by-side/normally-impossible.html"></include>
+
     <p>
-      Asynchronous <big><code>await</code></big> calls pause execution,
+      Modulus/remainder subtleties are a source of confusion,
+      but the <code>x >= 0</code>
+      check means that neither <code>%</code> operand should
+      ever be negative.  Still, that <code>COMEHERE</code>
+      block can cause a call to that helper with an input that should
+      never reach it.
+    </p>
+
+    <p>
+      But to build <i>trustworthy</i> software components, those that can be
+      relied upon not to fail, we should rarely <i>trust</i>, in the sense
+      that we rely on a subcomponent not failing.
+      If <code>isOdd</code> works for negative inputs, it's more
+      trustworthy which might come in important if a future version of the
+      code relaxes some of those precondition checks.
+    </p>
+
+    <p>
+      This example introduces a testing affordance, discussed later in more
+      detail.  The idea is that the lines in the string like
+      <code>$ isOdd(0)</code> are executed in the context of
+      the nested helper function, so that code is testing it with inputs
+      that would not reach it in normal production use.
+    </p>
+
+
+    <h3>Changes to branch conditions</h3>
+
+    <p>
+      In some programming languages, the semantics of branch
+      condition expressions affect whether later expressions are
+      allowed via type predicate (e.g. Typed Racket's <a href="https://docs.racket-lang.org/ts-guide/occurrence-typing.html">occurrence typing</a> or TypeScript's <a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates">narrowing predicates</a>).  For example, in
+      TypeScript like <code>if (typeof s === 'string') { f(s); }</code>,
+      the call to <code>f(s)</code> might only be well-typed because
+      the type checker knows that <code>s</code> refers to a string
+      value.
+    </p>
+
+    <p>
+      Adding extra conditions under which that condition is
+      true could cause expressions to fail to type check that
+      otherwise would.  In a language like TypeScript, where types
+      are erased and do not affect the semantics of dispatch, and
+      do not need to be sound for memory representation assumptions
+      to hold, one could just lie to the compiler, for example via a higher-order type predicate function that takes a type guard application and extra conditions and uses <code>as false</code> to logically union them but in a way that pretends to preserve the lower-order guard's postconditions.
+      Type checking and narrowing is important, but like encapsulation, relaxing it to allow program exploration and testing is good, and running programs in a separate optimistic and fault-tolerant interpreted runtime is always possible.
+    </p>
+
+    <h3>Mutable global state</h3>
+
+    <p>
+      Using mutable global variables to track COMEHERE seeking state
+      works in JavaScript because it is
+      <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model#job_queue_and_event_loop">event-loop concurrent</a>,
+      but most other languages' runtimes are not.  Passing seeking state
+      via extra function arguments would strongly anchor seeking state
+      to a particular stack frame, and ease adapting this scheme to
+      languages that have reentrancy due to threading, but that causes
+      its own problems: notably JavaScript allows calls with more
+      arguments than the callee expects, and runtime introspection can
+      expose information about adapted function signatures.  If the
+      seeking information captured which thread was seeking, or was
+      thread-local, and thread-locals were robust agains optimizations
+      like coroutine work stealing, then that would address this
+      problem.
+    </p>
+
+    <h3>Untrapped exceptions</h3>
+
+    <p>
+      Driving control involves synthesizing calls to induce stack frames
+      that are needed, but exceptions from code on the control-flow path
+      to the chosen <code>COMEHERE</code> block may fail with
+      an exception, popping that stack frame.
+    </p>
+
+    <p>
+      It's possible to implement a <code>try&hellip;catch</code>
+      slide, converting code like
+      <code>if (b) { mightFail(); } COMEHERE:with(_) { &hellip; }</code>
+      into code that keeps control moving forward like
+      <code>try { if (b) { mightFail(); } } catch (e_123) { if (seeking_0 !== 1) { throw e_123 } } COMEHERE:with(_) { &hellip; }</code>.
+      This implementation does not do that.  Care would need to be
+      taken to allow investigators access to any exceptions so trapped
+      to avoid needlessly investigating state that's not initialized
+      because exceptions prevented execution of some setup code.
+    </p>
+
+    <include src=".html-includes/side-by-side/noone-visits-me.html"></include>
+
+    <h3>Still TODO</h3>
+
+    <p>
+      Some transforms are needed but not yet implemented, and some
+      proposed changes to JavaScript might require special handling.
+    </p>
+
+    <p>
+      Asynchronous <code>await</code> calls pause execution,
       and can be a source of re-entrancy.  Below is an example of an
-      <big><code>async</code></big> function that reenters itself while
+      <code>async</code> function that reenters itself while
       paused (modulo <code>setTimeout</code> nondeterminism).
     </p>
 
@@ -305,11 +459,11 @@
     </pre>
 
     <p>
-      TODO: our <big><code>isActiveCall</code></big> guards prevent
+      TODO: our <code>isActiveCall</code> guards prevent
       observing the wrong result due to reentrancy, but the
-      <big><code>try/finally</code></big> around the synthesized call
-      probably needs to <big><code>await</code></big> in
-      the <big><code>try</big></code> when the callee is async or else
+      <code>try/finally</code> around the synthesized call
+      probably needs to <code>await</code> in
+      the <code>try</code> when the callee is async or else
       the finally will trigger before the COMEHERE is reached.
       In the case where the callee is an iterator, we might want to close
       it.  Maybe a try body helper could switch on the
@@ -330,79 +484,37 @@
       decorator application.
     </p>
 
-    <h2>Caveats</h2>
-
-    <h3>Making unrepresentable program states representable</h3>
-
-    <include src=".html-includes/side-by-side/normally-impossible.html"></include>
-
     <p>
-      Modulus/remainder subtleties are a source of confusion,
-      but the <big><code>x >= 0</code></big>
-      check means that neither <big><code>%</code></big> operand should
-      ever be negative.  Still, that <big><code>COMEHERE</code></big>
-      block can cause a call to that helper with an input that should
-      never reach it.
+      In addition to the short-circuiting operators mentioned above, JavaScript
+      has added null-coalescing short-cirtcuiting expressions.
+      TODO: <code>first ?? second</code> is similar to a short-circuiting
+      <code>&&</code> expression, but falls over to <code>second</code> when
+      <code>first</code> is nullish, not when its falsey.
     </p>
 
     <p>
-      But to build <i>trustworthy</i> software components, those that can be
-      relied upon not to fail, we should rarely <i>trust</i>, in the sense
-      that we rely on a subcomponent not failing.
-      If <big><code>isOdd</code></big> works for negative inputs, it's more
-      trustworthy which might come in important if a future version of the
-      code relaxes some of those precondition checks.
+      JavaScript has added
+      <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Optional_chaining">optional dispatch</a>.
+
+      <code>subject?.verb(args)</code> only evaluates
+      <code>args</code> when <code>subject</code> is not
+      nullish, so care should be taken when it is nullish to still allow
+      transfer of control into COMEHERE blocks inside lambdas nested in args.
+
+      TODO: handle optional member lookup and calls by desugaring to
+      something like the below where the key is captured so this works
+      for both literal method names and computed keys.
     </p>
 
-    <p>
-      This example introduces a testing affordance, discussed later in more
-      detail.  The idea is that the lines in the string like
-      <big><code>$ isOdd(0)</code></big> are executed in the context of
-      the nested helper function, so that code is testing it with inputs
-      that would not reach it in normal production use.
-    </p>
-
-
-    <h3>Changes to branch conditions</h3>
-
-    <p>
-      In some programming languages, the semantics of branch
-      condition expressions affect whether later expressions are
-      allowed via type predicate (e.g. Typed Racket's <a href="https://docs.racket-lang.org/ts-guide/occurrence-typing.html">occurrence typing</a> or TypeScript's <a href="https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates">narrowing predicates</a>).  For example, in
-      TypeScript like <big><code>if (typeof s === 'string') { f(s); }</code></big>,
-      the call to <big><code>f(s)</code></big> might only be well-typed because
-      the type checker knows that <big><code>s</code></big> refers to a string
-      value.
-    </p>
-
-    <p>
-      Adding extra conditions under which that condition is
-      true could cause expressions to fail to type check that
-      otherwise would.  In a language like TypeScript, where types
-      are erased and do not affect the semantics of dispatch, and
-      do not need to be sound for memory representation assumptions
-      to hold, one could just lie to the compiler, for example via a higher-order type predicate function that takes a type guard application and extra conditions and uses <code>as false</code> to logically union them but in a way that pretends to preserve the lower-order guard's postconditions.
-      Type checking and narrowing is important, but like encapsulation, relaxing it to allow program exploration and testing is good, and running programs in a separate optimistic and fault-tolerant interpreted runtime is always possible.
-    </p>
-
-    <h3>Mutable global state</h3>
-
-    <p>
-      Using mutable global variables to track COMEHERE seeking state
-      works in JavaScript because it is
-      <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Execution_model#job_queue_and_event_loop">event loop concurrent</a>,
-      but most other languages' runtimes are not.  Passing seeking state
-      via extra function arguments would strongly anchor seeking state
-      to a particular stack frame, and ease adapting this scheme to
-      languages that have reentrancy due to threading, but that causes
-      its own problems: notably JavaScript allows calls with more
-      arguments than the callee expects, and runtime introspection can
-      expose information about adapted function signatures.  If the
-      seeking information captured which thread was seeking, or was
-      thread-local, and thread-locals were robust agains optimizations
-      like coroutine work stealing, then that would address this
-      problem.
-    </p>
+    <pre>
+      // subject?.verb(args)
+      ((subject0, key0) => {
+        if (subject0 == null && SEEKING_PREDICATE) {
+          subject0 = { [key0]() {} };
+        }
+        return subject0?[key](args);
+      })(subject, 'verb')
+    </pre>
 
     <h2>Visualizing Intermediates</h2>
 
@@ -438,7 +550,7 @@
     <include src=".html-includes/side-by-side/dollarDollar.html"></include>
 
     <p>
-      And if the <big><code>$$name</code></big> variable is assigned
+      And if the <code>$$name</code> variable is assigned
       along multiple paths, that code reflects the last affecting
       intermediate expression.
     </p>
@@ -446,7 +558,7 @@
     <include src=".html-includes/side-by-side/abs.html"></include>
 
     <p>
-      This <big><code>$$</code></big> feature nice for reducing the
+      This <code>$$</code> feature nice for reducing the
       friction when visualizing program state, but it comes with risks.
       Entangling the semantics of string-producing expressions with
       lexical details of code risks making life harder for IDE plugin
@@ -454,7 +566,7 @@
       This kind of feature has proven valuable in other contexts:
       <ul>
         <li>Eric Smith extended Python3's
-          <a href="https://github.com/python/cpython/issues/80998"><big><code>f"&hellip;"</code></big> string syntax</a> to directly include code in the string produced.</li>
+          <a href="https://github.com/python/cpython/issues/80998"><code>f"&hellip;"</code> string syntax</a> to directly include code in the string produced.</li>
         <li>
           <a href="https://doi.org/10.1145/3313831.3376494">Lerner's Projection Boxes</a>
           use identifiers that appear in code in table headers but do not directly affect string values in the program.
@@ -464,7 +576,7 @@
           JavaScript library contextualizes failing predicates in test code but does not typically affect string values that are used outside reporting tests that fail regardless.
         </li>
         <li>
-          Rust's <a href="https://doc.rust-lang.org/std/macro.dbg.html"><big><code>dbg!</code></big> macro</a>
+          Rust's <a href="https://doc.rust-lang.org/std/macro.dbg.html"><code>dbg!</code> macro</a>
           shows the expression and result, but only in strings sent to stderr.
         </li>
       </ul>
@@ -476,7 +588,7 @@
       If we can super-charge <i>printf
       debugging</i>, what about other format string functions?
       We pored tirelessly over both <i>"stdio.h"</i> and <i>&laquo;stdio.h&raquo;</i>
-      (we ran <big><code>egrep 'f\b'</code></big>), and we're super proud to
+      (we ran <code>egrep 'f\b'</code>), and we're super proud to
       announce that COMEHERE enables an entirely new debugging paradigm:
       <i>scanf debugging</i>.
     </p>
@@ -513,7 +625,7 @@
       test.  Our extra goody-bag input comes in handy here.  Production code
       shouldn't depend on test harness code
       (<a href="https://github.com/google/node-sec-roadmap/blob/8e01b94ee2a7bbae9c9f758131fd421e2a1c8aa6/chapter-1/threat-UIR.md">Node Security Roadmap</a> by M.Samuel et al.),
-      but a test harness that iterates over, and runs each <big><code>COMEHERE</code></big>
+      but a test harness that iterates over, and runs each <code>COMEHERE</code>
       block and collects test results can inject test affordances.
     </p>
 
@@ -532,7 +644,7 @@
     <h2>Wrapping up</h2>
 
     <p>
-      In summary, <big><code>COMEHERE</code></big> provides a way to
+      In summary, <code>COMEHERE</code> provides a way to
       break encapsulation where you need it: in non-production
       contexts when live programming or closed-box testing.
       This contributes an AST transform for JavaScript that demonstrates
@@ -547,5 +659,55 @@
       As such, it might serve as a useful building block for more
       syntactically-sugary debugging and testing features.
     </p>
+
+    <script>{
+    // Fill in the table-of-contents
+    let tableOfContents = document.querySelector('#table-of-contents');
+    let headers = [...document.querySelectorAll('h2, h3, h4, h5, h6')];
+
+    function anchorAddedIfMissing(header) {
+      if (header.id) {
+        return header.id;
+      }
+      let idPrefix = header.innerText.replace(/[^\w_\-]+/g, '-') || 'section';
+      let suffix = '';
+      let id;
+      while (true) {
+        id = `${idPrefix}${suffix}`;
+        if (!document.getElementById(id)) {
+          break;
+        }
+        suffix = '' + (suffix ? '0' : suffix - -1);
+      }
+      header.id = id;
+      return id;
+    }
+
+    for (let header of headers) {
+      let container = tableOfContents;
+      let nestingLevel = +header.tagName.replace(/^h/i, '') - 2;
+      let anchor = anchorAddedIfMissing(header);
+      let text = header.innerText;
+      while (--nestingLevel >= 0) {
+        let last = container.lastChild;
+        let list;
+        if (last?.nodeType === 1 && last.tagName === 'OL') {
+          list = last;
+        } else {
+          list = document.createElement('ol');
+          container.appendChild(list);
+        }
+        container = list;
+      }
+      if (container.tagName === 'OL') {
+        container.appendChild(container = document.createElement('li'));
+      }
+      let linkToHeader = document.createElement('a');
+      linkToHeader.href = `#${anchor}`;
+      linkToHeader.appendChild(document.createTextNode(text));
+      container.appendChild(linkToHeader);
+    }
+  }
+    </script>
   </body>
 </html>
