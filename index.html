@@ -288,7 +288,7 @@
 
     <include src=".html-includes/side-by-side/class-method.html"></include>
 
-    <h3>Short circuiting logical expressions</h3>
+    <h3>Short circuiting expressions</h3>
 
     <p>
       Short-circuiting expressions blur the
@@ -297,8 +297,8 @@
       an <code>if</code> statement above but is typically evaluated for its result
       rather than for effect.  The expression <code>first && second</code>
       is equivalent (modulo repeated evaluation of <code>first</code>) to
-      <code>first ? first : second</code>, and similarly
-      <code>first || second</code> needs to be rewritten when there's an embedded
+      <code>first ? first : second</code>. Those and
+      <code>first || second</code> need to be rewritten when there's an embedded
       <code>COMEHERE</code> block.
     </p>
 
@@ -634,7 +634,7 @@
       edit that notebook down to something that can serve as a regression
       test.  Our extra goody-bag input comes in handy here.  Production code
       shouldn't depend on test harness code
-      (<a href="https://github.com/google/node-sec-roadmap/blob/8e01b94ee2a7bbae9c9f758131fd421e2a1c8aa6/chapter-1/threat-UIR.md">Node Security Roadmap</a> by M.Samuel et al.),
+      (<a href="https://github.com/google/node-sec-roadmap/blob/8e01b94ee2a7bbae9c9f758131fd421e2a1c8aa6/chapter-1/threat-UIR.md#non-production-code-differs-from-production-code">Node Security Roadmap</a> by M.Samuel et al.),
       but a test harness that iterates over, and runs each <code>COMEHERE</code>
       block and collects test results can inject test affordances.
     </p>

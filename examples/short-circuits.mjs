@@ -1,5 +1,5 @@
 export let x =
-  Math.random()
+  Math.random() >= 0.5
   ? (() => {
       COMEHERE:with('In ? of hook') {
         console.log('in ?');
