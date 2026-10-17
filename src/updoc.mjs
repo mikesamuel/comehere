@@ -118,7 +118,7 @@ export function runUpdocTest(testName, updocText, execute) {
         }
         let prefix = passedChunk ? '' : '❌';
         expected.push('-> ', want, '\n');
-        actual.push(prefix, '-> ', got, '\n');
+        actual.push(prefix + '-> ', got, '\n');
       } else {
         throw new Error(`${testName}: Malformed updoc ${JSON.stringify(chunk)} at offset ${offset} in ${JSON.stringify(updocText)}`);
       }
